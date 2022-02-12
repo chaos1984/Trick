@@ -20,72 +20,29 @@ def plotRectBox(img,object,label):
     Return:
         img
     Usage:
+        from utils_pre import getObjectxml
+        xmlfile = 'xxx.xml';label='person'; saveimgfile='xxx.jpg'
+        objectlist = getObjectxml(xmlfile,label)
+        imgfile = xmlfile.replace(".xml",".tif")
+        img = cv2.imread(imgfile)
+        if len(objectlist) > 0:
+            for index,object in enumerate(objectlist):
+                imgname = "_%i.png" %(index)
+                saveimgfile = xmlfile.replace(".xml",imgname)
+                # saveCropImg(img,object['bndbox'],save_path+saveimgfile,scale=3)
+                img = plotRectBox(img,object['bndbox'],label,saveimgfile)
+            cv2.imwrite(saveimgfile,img)
+        else:
+            print ('Warnning: No %s found!' %(label))
     '''
     height, width, _ = img.shape
     xmin = int(object['xmin']); ymin= int(object['ymin']); xmax = int(object['xmax']); ymax = int(object['ymax'])
     h = ymax - ymin; w = xmax - xmin
     cv2.rectangle(img,(xmin,ymin),(xmax,ymax),(0,0,255),1)
     cv2.putText(img, label, (xmax,ymax), cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,255,255),1)
-    # cv_show('img',img)
-    # print (saveimgfile)
     return img
 
-def getFrame(dir,flielist,save_path=r"./save_each_frames_front"):
-    '''
-    Description: Extract frame from video
-    Author: Yujin Wang
-    Date: 2022-01-24
-    Args:
-        dir[str]: video dir.
-        flielist[list]:video list
-        save_path[str]: frame save directory
-    Return:
-        NaN
-    Usage:
-        avi_list =  glob.glob(DocDir+".avi")
-        filelist = [i.replace("\\", "/").split("/")[-1].split(".json")[0] for i in avi_list[0]]
-        print (filelist)
-        getFrame(avi_list[0],filelist,save_path)
-    '''
-    num = 0
-    for index,file in enumerate(dir):
-        num += 1
-        cap = cv2.VideoCapture()
-        print (file)
-        cap.open(file)
-        if cap.isOpened() != True:
-            os._exit(-1)
-        
-        #get the total numbers of frame
-        totalFrameNumber = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        print ("the number of frames is {}".format(totalFrameNumber))
-        
-        #set the start frame to read the video
-        frameToStart = 1
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frameToStart)
-        
-        #get the frame rate
-        rate = cap.get(cv2.CAP_PROP_FPS)
-        print ("the frame rate is {} fps".format(rate))
-        
-        # get each frames and save
-        frame_num = 0
-        while True:
-            ret, frame = cap.read()
-            if ret != True:
-                break
 
-            if frame_num % 230 == 0:
-                img_path = save_path+ "//" +str(num)+'_'+str(frame_num)+'_'+flielist[index][:-4]+".jpg"
-                print (img_path)
-                cv2.imwrite(img_path,frame)
-            frame_num = frame_num + 1
-        
-            # wait 10 ms and if get 'q' from keyboard  break the circle
-            if cv2.waitKey(10) & 0xFF == ord('q'):
-                break
-            
-        cap.release()
 
 def LabelObjectBaseKeypoint(img_file,
                             personbox,
@@ -410,3 +367,22 @@ if __name__ == "__main__":
     
     # print ("left_hand",left_hand_x,left_hand_y)
     # print ("right_hand",right_hand_x,right_hand_y)
+
+
+    from utils_pre import getObjectxml
+    xmlfile = 'xxx.xml';label='person'; saveimgfile='xxx.jpg'
+    objectlist = getObjectxml(xmlfile,label)
+    imgfile = xmlfile.replace(".xml",".tif")
+    img = cv2.imread(imgfile)
+    if len(objectlist) > 0:
+        # print(objectlist)
+        for index,object in enumerate(objectlist):
+            imgname = "_%i.png" %(index)
+            saveimgfile = xmlfile.replace(".xml",imgname)
+            # saveCropImg(img,object['bndbox'],save_path+saveimgfile,scale=3)
+            img = plotRectBox(img,object['bndbox'],label,saveimgfile)
+        # cv_show("cropimg",cropimg)
+        cv2.imwrite(saveimgfile,img)
+    else:
+        # print(objectlist)
+        print ('Warnning: No %s found!' %(label))
