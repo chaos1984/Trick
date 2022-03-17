@@ -1,0 +1,69 @@
+{
+	"yolov5":"D:/02_Study/01_PaddleDetection/Pytorch/yolov5",
+	"task_list":[ "person","pose","mask"],
+	"model": {
+		"pose": {
+			"detect": "LiteHRNet",
+			"weights": "/data/wangyj/02_Study/Pytorch/Lite-HRNet-hrnet/litehrnet_30_coco_384x288.pth",
+			"data": "/data/wangyj/02_Study/Pytorch/Lite-HRNet-hrnet/configs/top_down/lite_hrnet/coco/litehrnet_30_coco_384x288.py",
+			"conf_thres": 0.4,
+			"iou_thres": 0.45,
+			"device": "cuda:0"
+		},
+		"person": {
+			"detect:":"yolo",
+			"weights": "D:/05_Trick/modellib/coco80/best.pt",
+			"data": "D:/05_Trick/modellib/coco80/coco128.yaml",
+			"save_dir":"./",
+			"conf_thres": 0.2,
+			"iou_thres": 0.45,
+			"device": "cpu"
+		},
+		"mask": {
+			"detect:":"yolo",
+			"weights": "D:/05_Trick/modellib/mask/best.pt",
+			"data": "D:/05_Trick/modellib/mask/mask.yaml",
+			"save_dir":"./",
+			"conf_thres": 0.4,
+			"iou_thres": 0.45,
+			"device": "cpu"
+		},
+		"phone": {
+			"detect:":"yolo",
+			"weights": "D:/05_Trick/modellib/phone/best.pt",
+			"data": "D:/05_Trick/modellib/phone/steel.yaml",
+			"save_dir":"./",
+			"conf_thres": 0.4,
+			"iou_thres": 0.45,
+			"device": "cpu"
+		},
+		"alarm": {
+			"detect:":"yolo",
+			"weights": "D:/05_Trick/modellib/alarm/best.pt",
+			"data": "D:/05_Trick/modellib/alarm/alarm.yaml",
+			"save_dir":"./",
+			"conf_thres": 0.4,
+			"iou_thres": 0.45,
+			"device": "cpu"
+		},
+		"smoke": {
+			"detect:":"yolo",
+			"weights": "D:/05_Trick/modellib/smoke/best.pt",
+			"data": "D:/05_Trick/modellib/smoke/smoke.yaml",
+			"save_dir":"./",
+			"conf_thres": 0.4,
+			"iou_thres": 0.45,
+			"device": "cpu"
+		},
+		"steel": {
+			"detect:":"yolo",
+			"weights": "D:/05_Trick/modellib/steel/best.pt",
+			"data": "D:/05_Trick/modellib/steel/steel.yaml",
+			"save_dir":"./",
+			"conf_thres": 0.6,
+			"iou_thres": 0.45,
+			"device": "cpu"
+		}
+	}
+
+}

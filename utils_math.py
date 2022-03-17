@@ -1,4 +1,46 @@
 import numpy as np
+
+def calcImgArray(w,h,num):
+    if w // h > num or h // w > num:
+        if w > h:
+            return (num,1)
+        else:
+            return (1,num)
+    else:
+        
+        col = int(np.sqrt(num)+1)
+        # if (col*row)%num > col:
+        row = col-1 if(col*col)%num > col else col
+        return row,col
+
+def convert(size, box):
+    '''
+    Description: Change xyxy to yolo xywh
+    Author: Yujin Wang
+    Date: 2022-01-22
+    Args:
+        size[list]: from img.shape
+        box[list]:xmin,xmax,ymin,ymax
+    Return:
+        (x, y, w, h)
+    Usage:
+        height, width, _ = cv2.imread(file.replace(".xml",".jpg")).shape
+        b = (float(bbox["bndbox"]["xmin"]), float(bbox["bndbox"]["xmax"]), float(bbox["bndbox"]["ymin"]), float(bbox["bndbox"]["ymax"]))
+        bb = convert((width, height), b)
+    '''
+    dw = 1. / (size[0])
+    dh = 1. / (size[1])
+    x = (box[0] + box[1]) / 2.0 - 1
+    y = (box[2] + box[3]) / 2.0 - 1
+    w = box[1] - box[0]
+    h = box[3] - box[2]
+    x = x * dw
+    w = w * dw
+    y = y * dh
+    h = h * dh
+    return (x, y, w, h)
+
+
 def dist(x1, x2, y1, y2):
     '''
     Description: Calculate distance between 2 points

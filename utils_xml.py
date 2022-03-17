@@ -1,11 +1,245 @@
-#!/usr/bin/python
-# -*- coding=utf-8 -*-
-# author : wklken@yeah.net
-# date: 2012-05-25
-# version: 0.1
- 
+import os
+import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import ElementTree,Element
- 
+from utils_pre import *
+
+def create_node(tag, content=''):
+    '''新造一个节点
+       tag:节点标签
+       property_map:属性及属性值map
+       content: 节点闭合标签里的文本内容
+       return 新节点'''
+    element = Element(tag)
+    element.text = content
+    element.tail = '\n'
+    return element
+
+def combineXMLinDirection(xmlfilelist, edgelen,fignum,padding,direction):
+    length = (edgelen - padding) / fignum
+    offest = length + padding / (fignum - 1)
+    if direction == 'v':
+        return combineXML(xmlfilelist, 0, offest)
+    else:
+        return combineXML(xmlfilelist, offest, 0)
+    
+def combineXML(xmlfilelist,xoffset=0,yoffset=0):
+    tree = ET.parse(xmlfilelist[0])
+    root = tree.getroot()
+    for i,xmlfile in enumerate(xmlfilelist[1:]):
+        objectlist = getObjectxml(xmlfile,classes='all')
+        for object in objectlist:
+            obj = Element("object")
+            obj.append(create_node("name", object[0]))
+            obj.append(create_node("bndbox", ''))
+            obj[1].append(create_node("xmin", str(object[1]+xoffset*(i+1))))
+            obj[1].append(create_node("ymin", str(object[2]+yoffset*(i+1))))
+            obj[1].append(create_node("xmax", str(object[3]+xoffset*(i+1))))
+            obj[1].append(create_node("ymax", str(object[4]+yoffset*(i+1))))
+            root.append(obj)
+    return tree
+
+
+def createObjxml(res,imgpath,cls={"0":"person"},xmlfile=None):
+    '''
+    Description: Make a object user defined xml file 
+    Author: Yujin Wang
+    Date: 2022-02-14
+    Args:
+        res[list]:[[],[]....]
+        imgpath[str]:img path
+        cls[dict]: key: clsid; value: clsname
+        xmlfile[str]:xml file path
+    Return:
+        write a xml file to record yolo res.
+    Usage:
+    '''
+    # print(res,imgpath)
+    if xmlfile==None:
+        root = create_node("annotation","")
+        root.append(create_node("filename","None"))
+        root.append(create_node("path","None"))
+        source = create_node("source","")
+        source.append(create_node("database","Unknown"))
+        root.append(source)
+        size = create_node("size","")
+        size.append(create_node("width",res["size"]["w"]))
+        size.append(create_node("height",res["size"]["h"]))
+        size.append(create_node("depth",res["size"]["c"]))
+        root.append(size)
+        #
+        tree = ElementTree(root)
+    else:
+        tree = ET.parse(xmlfile)
+        root = tree.getroot()
+    for id,item in enumerate(res["object"]):
+        # xmin,xmax,ymin,ymax = xywh2xyxy(*item)
+        xmin, ymin, xmax, ymax = int(item[0]), int(item[1]), int(item[2]), int(item[3])
+        obj = create_node("object","")
+        obj.append(create_node("name",cls[int(item[-1])]))
+        obj.append(create_node("pose",'Unspecified'))
+        obj.append(create_node("truncated",'0'))
+        obj.append(create_node("difficult",'0'))
+        obj.append(create_node("bndbox",''))
+        obj[4].append(create_node("xmin",str(max(xmin-1,0))))
+        obj[4].append(create_node("ymin",str(max(ymin-1,0))))
+        obj[4].append(create_node("xmax",str(min(xmax+1,int(res["size"]["w"])))))
+        obj[4].append(create_node("ymax",str(min(ymax+1,int(res["size"]["h"])))))
+        root.append(obj)
+
+    tree.write(imgpath.replace(imgpath[-4:],".xml"))
+
+
+def remObjectxml(xmldir,xmlfiles,classes,isSavas=True):
+    '''
+    Description: remove object from xmlfile in VOC
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        xmldir[str]:xml file directory
+        xmlfile[],classes
+    Return:
+        NaN
+    Usage:
+        filedir = r'D:\01_Project\01_Fangang\01_Ref_211232\1\images/copy/' 
+        xmlfiles = glob.glob(filedir + '*.xml')
+        remObjectxml(filedir,xmlfiles,["person"],isSavas=False)
+    '''
+    
+    # xmlfile = os.path.join(xmldir, xmlfile)
+    savedir = mkFolder(xmldir,"rem_copy")
+    for xmlfile in xmlfiles:
+        # file = file.replace("\\", "/")
+        xmlpath = xmldir+xmlfile
+        tree = ET.parse(xmlpath)
+        root = tree.getroot()
+        objects = root.findall("object")
+        isfindflag = 0
+        for obj in objects:
+            name = obj.find('name').text
+            if name in classes:
+                root.remove(obj)
+                isfindflag = 1
+
+
+        if isfindflag == 1:
+            print(xmlpath,os.path.join(savedir,xmlfile))
+            copyfile(xmlpath,os.path.join(savedir,xmlfile))
+            tree.write(xmlpath)
+
+
+def checkLabexml(xmlfiles):
+    '''
+    Description:check label in xmlfile
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        xmldir[str]:xml file directory
+        xmlfile[],classes
+    Return:
+        NaN
+    Usage:
+        filedir = r'D:\01_Project\01_Fangang\01_Ref_211232\1\images/copy/' 
+        xmlfiles = glob.glob(filedir + '*.xml')
+        remObjectxml(filedir,xmlfiles,["person"],isSavas=False)
+    '''
+    # print(xmldir,xmlfiles,oldcls,newcls)
+    # xmlfile = os.path.join(xmldir, xmlfile)
+    cls = {}
+    noobject = []
+    for xmlfile in xmlfiles:
+        # file = file.replace("\\", "/")
+        tree = ET.parse(xmlfile)
+        root = tree.getroot()
+        objects = root.findall("object")
+        if len(objects) == 0:
+            print("No object found in img: %s" %(xmlfile))
+            noobject.append(xmlfile)
+        for obj in objects:
+            name = obj.find('name').text
+            if name not in cls.keys():
+                cls[name] = {"count":0,"files":[]}
+            cls[name]["count"] += 1;cls[name]["files"].append(xmlfile)
+    for name in cls.keys():
+        print("Class name:%s\tNumber:%d" %(name,cls[name]["count"]))
+    return noobject
+
+def chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSavas=False):
+    '''
+    Description:Change class name in xmlfile
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        xmldir[str]:xml file directory
+        xmlfile[],classes
+    Return:
+        NaN
+    Usage:
+        filedir = r'D:\01_Project\01_Fangang\01_Ref_211232\1\images/copy/' 
+        xmlfiles = glob.glob(filedir + '*.xml')
+        remObjectxml(filedir,xmlfiles,["person"],isSavas=False)
+    '''
+    # print(xmldir,xmlfiles,oldcls,newcls)
+    if isSavas==True:
+        savedir = mkFolder(dir,'rem')
+    # xmlfile = os.path.join(xmldir, xmlfile)
+    for xmlfile in xmlfiles:
+        # file = file.replace("\\", "/")
+        tree = ET.parse(os.path.join(xmldir,xmlfile))
+        root = tree.getroot()
+        objects = root.findall("object")
+        for obj in objects:
+            name = obj.find('name').text
+            if name == oldcls:
+                # root.remove(obj)
+                # print(obj['name'])
+                obj.find('name').text = newcls
+        
+        if isSavas==True:
+            fn = xmlfile.replace("\\", "/").split("/")[-1].split(".json")[0]
+            xmlfile = os.path.join(savedir,fn)
+        print(xmlfile)
+        tree.write(xmlfile)
+
+def getObjectxml(xmlfile,classes):
+    '''
+    Description: Get dest object information
+    Author: Yujin Wang
+    Date: 2022-1-6
+    Args: 
+        xmlfile[str]: .xml file from labelimg
+        classes[list]: Class name
+    Return:
+        obj[list]: obeject list,[['person', 592, 657, 726, 1077],['person', 592, 657, 726, 1077]]
+    Usage:
+        bboxlist = getObjectxml(xmlfile,classes)
+    '''
+    # print ("Current process file:",xmlfile)
+    tree = ET.parse(xmlfile)
+    root = tree.getroot()
+    objects = root.findall("object")
+    objectlist = []
+    try:
+        len(objects)
+        for obj in objects:
+            name = obj.find('name').text
+            # if type(classes) != list:
+            #     bndbox = obj.find('bndbox')
+            #     box = [name]
+            #     for child in bndbox:
+            #         box.append(int(float(child.text)))
+            # else:
+            if name in classes:
+                bndbox = obj.find('bndbox')
+                box = [name]
+                for child in bndbox:
+                    box.append(int(float(child.text)))
+                objectlist.append(box)
+    except:
+        # No object
+        print ("No object is found!")
+    return objectlist
+
+
 def read_xml(in_path):
     '''读取并解析xml文件
        in_path: xml路径
@@ -74,16 +308,7 @@ def change_node_text(nodelist, text, is_add=False, is_delete=False):
         else:
             node.text = text
             
-def create_node(tag, content=''):
-    '''新造一个节点
-       tag:节点标签
-       property_map:属性及属性值map
-       content: 节点闭合标签里的文本内容
-       return 新节点'''
-    element = Element(tag)
-    element.text = content
-    return element
-        
+
 def add_child_node(nodelist, element):
     '''给一个节点添加子节点
        nodelist: 节点列表

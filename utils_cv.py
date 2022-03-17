@@ -1,12 +1,14 @@
+from math import remainder
 import os
 import cv2 
 import numpy as np
+import sys
 # from numpy.lib.function_base import angle
 import glob
 import random
 
-# from rule import get_hand_point
-from predict_for_training import indent,get_annotations
+
+
 
 def plotRectBox(img,object,label):
     '''
@@ -50,7 +52,7 @@ def LabelObjectBaseKeypoint(img_file,
                             start = 0,
                             end = 5,
                             ratio_w = 0.18,
-                            ratio_h = 0.18
+                            ratio_h = 0.18,
                             outdir ='/data/wangyj/02_Study/PaddleDetection/facemask/out',   
 ):
     '''
@@ -268,7 +270,7 @@ def get_hand_point(elbow_x, elbow_y, wrist_x, wrist_y):
     angle = ang(hand_x, elbow_x, hand_y, elbow_y)
     return hand_x, hand_y, dis, angle
 
-def pasteimg(bg_img,fg_img,pos,checkrange):
+def pasteImg(bg_img,fg_img,pos,checkrange):
     '''
     Description: Past fb image on bg image
     Author: Yujin Wang
@@ -284,7 +286,7 @@ def pasteimg(bg_img,fg_img,pos,checkrange):
     Usage:
         h,w,_ = img.shape
         checkrange = [int(w*checkratio),int(w-w*checkratio),int(h*checkratio),int(h-h*checkratio)]
-        img = pasteimg(img,rotate_ciga,pos,1)
+        img = pasteImg(img,rotate_ciga,pos,1)
     '''
     h,w,_ = fg_img.shape
     c_h = int(h/2);c_w = int(w/2)
@@ -303,86 +305,77 @@ def pasteimg(bg_img,fg_img,pos,checkrange):
         else:
             return bg_img,[]
 
-def saveCropImg(img,object,saveimgfile,scale=1):
-    '''
-    Description: Crop image accoding to the bounding box from xml, and save the cropped image
-    Author: Yujin Wang
-    Date: 2022-1-6
-    Args: 
-        img[image]: image
-        object: dest object
-        saveimgfile: croped image is saved in dir and file name
-    Return:
-        NAN
-    Usage:
-    '''
-    height, width, _ = img.shape
-    xmin = int(object['xmin']); ymin= int(object['ymin']); xmax = int(object['xmax']); ymax = int(object['ymax'])
-    h = ymax - ymin; w = xmax - xmin
-    x1, y1 = max(int(xmin-scale*w/2),0), max(int(ymin-scale*h/2),0)
-    x2, y2 = min(int(xmax+scale*w/2),width), min(int(ymin+scale*h/2),height)
-    dst = img[y1:y2,x1:x2]
-    cv2.imwrite(saveimgfile,dst)
 
 
 if __name__ == "__main__":
     
-    # imgfiledir =r"./img/"
-    # imgfiles = glob.glob(imgfiledir + '*.png')
-
-    cigafiledir = r"./ciga/"
-    cigafiles = glob.glob(cigafiledir + '*.png')
-    ciga = random.sample(cigafiles, 1)[0]
-
-
-    # save_path = imgfiledir+"ciga"+'/'
-
-    res =   [[905.21044921875, 435.4527587890625, 0.7316806316375732], [801.7477416992188, 478.2089538574219, 0.7653260827064514], [904.3194580078125, 457.283935546875, 0.5500354170799255], [862.6246337890625, 477.6883544921875, 0.7263373732566833]]
-    left_hand_x,left_hand_y,left_dis,left_angle = get_hand_point(elbow_x=res[0][0], elbow_y=res[0][1], wrist_x=res[2][0], wrist_y=res[2][1])
-    right_hand_x,right_hand_y,right_dis,right_angle = get_hand_point(elbow_x=res[1][0], elbow_y=res[1][1], wrist_x=res[3][0], wrist_y=res[3][1])
-    pos = [int(left_hand_x),int(left_hand_y)]
-    pos = [int(right_hand_x),int(right_hand_y)]
-    ratio = left_dis/27*0.1 
-    img = cv2.imread("./smoke10.jpg")
-    print (ciga)
-    ciga = cv2.imread(ciga)
-    # h,w,_ =ciga.shape
-    # cv_show("ciga",ciga)
-    # size = (int(w*ratio), int(h*ratio))  
-    # ciga = cv2.resize(ciga, size, interpolation=cv2.INTER_AREA)  
-    rotate_ciga = img_rotate(ciga,left_angle,scale=ratio)
-    # img = img_rotate(img)
-    # cv_show("ro",rotate_ciga)
-    # h,w,_ =rotate_ciga.shape
-    # cv_show("ciga",ciga)
+    try:
+        action = sys.argv[1]
+        file_dir = sys.argv[2]
+        if file_dir[-1] != '/':
+            file_dir = file_dir+os.sep
+    except:
+        action = ""
+        file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\yolov5\data\images/"
+        file_dir = r"D:\01_Project\02_Baosteel\01_Input\Dataset\V3\test/"
+        # pass
     
-    # cv2.rectangle(img,(int(left_hand_x),int(left_hand_y)),(int(right_hand_x),int(right_hand_y)),(0,0,255),10)
+    # # imgfiledir =r"./img/"
+    # # imgfiles = glob.glob(imgfiledir + '*.png')
+
+    # cigafiledir = r"./ciga/"
+    # cigafiles = glob.glob(cigafiledir + '*.png')
+    # ciga = random.sample(cigafiles, 1)[0]
 
 
-    # rotate_ciga_trans = subsBG(rotate_ciga)
-    img = paste_img(img,rotate_ciga,pos,1)
-    # cv_show("cv",img)
-    # saveimgfile = save_path+
-    # cv2.imwrite(saveimgfile,img)
+    # # save_path = imgfiledir+"ciga"+'/'
+
+    # res =   [[905.21044921875, 435.4527587890625, 0.7316806316375732], [801.7477416992188, 478.2089538574219, 0.7653260827064514], [904.3194580078125, 457.283935546875, 0.5500354170799255], [862.6246337890625, 477.6883544921875, 0.7263373732566833]]
+    # left_hand_x,left_hand_y,left_dis,left_angle = get_hand_point(elbow_x=res[0][0], elbow_y=res[0][1], wrist_x=res[2][0], wrist_y=res[2][1])
+    # right_hand_x,right_hand_y,right_dis,right_angle = get_hand_point(elbow_x=res[1][0], elbow_y=res[1][1], wrist_x=res[3][0], wrist_y=res[3][1])
+    # pos = [int(left_hand_x),int(left_hand_y)]
+    # pos = [int(right_hand_x),int(right_hand_y)]
+    # ratio = left_dis/27*0.1 
+    # img = cv2.imread("./smoke10.jpg")
+    # print (ciga)
+    # ciga = cv2.imread(ciga)
+    # # h,w,_ =ciga.shape
+    # # cv_show("ciga",ciga)
+    # # size = (int(w*ratio), int(h*ratio))  
+    # # ciga = cv2.resize(ciga, size, interpolation=cv2.INTER_AREA)  
+    # rotate_ciga = img_rotate(ciga,left_angle,scale=ratio)
+    # # img = img_rotate(img)
+    # # cv_show("ro",rotate_ciga)
+    # # h,w,_ =rotate_ciga.shape
+    # # cv_show("ciga",ciga)
     
-    # print ("left_hand",left_hand_x,left_hand_y)
-    # print ("right_hand",right_hand_x,right_hand_y)
+    # # cv2.rectangle(img,(int(left_hand_x),int(left_hand_y)),(int(right_hand_x),int(right_hand_y)),(0,0,255),10)
 
 
-    from utils_pre import getObjectxml
-    xmlfile = 'xxx.xml';label='person'; saveimgfile='xxx.jpg'
-    objectlist = getObjectxml(xmlfile,label)
-    imgfile = xmlfile.replace(".xml",".tif")
-    img = cv2.imread(imgfile)
-    if len(objectlist) > 0:
-        # print(objectlist)
-        for index,object in enumerate(objectlist):
-            imgname = "_%i.png" %(index)
-            saveimgfile = xmlfile.replace(".xml",imgname)
-            # saveCropImg(img,object['bndbox'],save_path+saveimgfile,scale=3)
-            img = plotRectBox(img,object['bndbox'],label,saveimgfile)
-        # cv_show("cropimg",cropimg)
-        cv2.imwrite(saveimgfile,img)
-    else:
-        # print(objectlist)
-        print ('Warnning: No %s found!' %(label))
+    # # rotate_ciga_trans = subsBG(rotate_ciga)
+    # img = paste_img(img,rotate_ciga,pos,1)
+    # # cv_show("cv",img)
+    # # saveimgfile = save_path+
+    # # cv2.imwrite(saveimgfile,img)
+    
+    # # print ("left_hand",left_hand_x,left_hand_y)
+    # # print ("right_hand",right_hand_x,right_hand_y)
+
+
+    # from utils_pre import getObjectxml
+    # xmlfile = 'xxx.xml';label='person'; saveimgfile='xxx.jpg'
+    # objectlist = getObjectxml(xmlfile,label)
+    # imgfile = xmlfile.replace(".xml",".tif")
+    # img = cv2.imread(imgfile)
+    # if len(objectlist) > 0:
+    #     # print(objectlist)
+    #     for index,object in enumerate(objectlist):
+    #         imgname = "_%i.png" %(index)
+    #         saveimgfile = xmlfile.replace(".xml",imgname)
+    #         # saveCropImg(img,object['bndbox'],save_path+saveimgfile,scale=3)
+    #         img = plotRectBox(img,object['bndbox'],label,saveimgfile)
+    #     # cv_show("cropimg",cropimg)
+    #     cv2.imwrite(saveimgfile,img)
+    # else:
+    #     # print(objectlist)
+    #     print ('Warnning: No %s found!' %(label))

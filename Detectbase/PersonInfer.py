@@ -51,6 +51,7 @@ class PersonInfer(Infer):
                                    max_det=1000)
 
         # Process predictions
+
         self.res = []
         for i, det in enumerate(pred):  # per image
             if len(det):
