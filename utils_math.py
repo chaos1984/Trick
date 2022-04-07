@@ -13,7 +13,7 @@ def calcImgArray(w,h,num):
         row = col-1 if(col*col)%num > col else col
         return row,col
 
-def convert(size, box):
+def xyxy2xywh(size, box):
     '''
     Description: Change xyxy to yolo xywh
     Author: Yujin Wang
@@ -39,6 +39,27 @@ def convert(size, box):
     y = y * dh
     h = h * dh
     return (x, y, w, h)
+
+def xywh2xyxy(size, box):
+    '''
+    Description: Change xyxy to yolo xywh
+    Author: Yujin Wang
+    Date: 2022-01-22
+    Args:
+        size[list]: from img.shape
+        box[list]:xmin,xmax,ymin,ymax
+    Return:
+        (x, y, w, h)
+    Usage:
+        height, width, _ = cv2.imread(file.replace(".xml",".jpg")).shape
+        b = (float(bbox["bndbox"]["xmin"]), float(bbox["bndbox"]["xmax"]), float(bbox["bndbox"]["ymin"]), float(bbox["bndbox"]["ymax"]))
+        bb = convert((width, height), b)
+    '''
+    im_h,im_w = size
+    xc,yc,w,h = box
+    xmin = int(xc*im_w - w*im_w/2);xmax = int(xc*im_w + w*im_w/2)
+    ymin = int(yc * im_h - h * im_h / 2);ymax = int(yc * im_h + h * im_h / 2)
+    return (xmin, ymin, xmax, ymax)
 
 
 def dist(x1, x2, y1, y2):

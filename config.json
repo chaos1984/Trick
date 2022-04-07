@@ -12,10 +12,10 @@
 		},
 		"person": {
 			"detect:":"yolo",
-			"weights": "D:/05_Trick/modellib/coco80/best.pt",
-			"data": "D:/05_Trick/modellib/coco80/coco128.yaml",
+			"weights": "D:/05_Trick/modellib/person_smoke/best.pt",
+			"data": "D:/05_Trick/modellib/person_smoke/pan_steel_smoke_phone_4.yaml",
 			"save_dir":"./",
-			"conf_thres": 0.2,
+			"conf_thres": 0.8,
 			"iou_thres": 0.45,
 			"device": "cpu"
 		},
@@ -42,7 +42,16 @@
 			"weights": "D:/05_Trick/modellib/alarm/best.pt",
 			"data": "D:/05_Trick/modellib/alarm/alarm.yaml",
 			"save_dir":"./",
-			"conf_thres": 0.4,
+			"conf_thres": 0.2,
+			"iou_thres": 0.45,
+			"device": "cpu"
+		},
+		"person_alarm": {
+			"detect:":"yolo",
+			"weights": "D:/05_Trick/modellib/person_alarm/best.pt",
+			"data": "D:/05_Trick/modellib/alarm/alarm.yaml",
+			"save_dir":"./",
+			"conf_thres": 0.2,
 			"iou_thres": 0.45,
 			"device": "cpu"
 		},

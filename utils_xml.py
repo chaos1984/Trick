@@ -26,7 +26,7 @@ def combineXML(xmlfilelist,xoffset=0,yoffset=0):
     tree = ET.parse(xmlfilelist[0])
     root = tree.getroot()
     for i,xmlfile in enumerate(xmlfilelist[1:]):
-        objectlist = getObjectxml(xmlfile,classes='all')
+        objectlist,_,_ = getObjectxml(xmlfile,classes='all')
         for object in objectlist:
             obj = Element("object")
             obj.append(create_node("name", object[0]))
@@ -39,7 +39,7 @@ def combineXML(xmlfilelist,xoffset=0,yoffset=0):
     return tree
 
 
-def createObjxml(res,imgpath,cls={"0":"person"},xmlfile=None):
+def createObjxml(res,imgpath,cls=[],xmlfile=None):
     '''
     Description: Make a object user defined xml file 
     Author: Yujin Wang
@@ -89,6 +89,36 @@ def createObjxml(res,imgpath,cls={"0":"person"},xmlfile=None):
     tree.write(imgpath.replace(imgpath[-4:],".xml"))
 
 
+def movObjectxml(xmldir,xmlfiles,classes,savedir):
+    '''
+    Description: remove object from xmlfile in VOC
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        xmldir[str]:xml file directory
+        xmlfile[],classes
+    Return:
+        NaN
+    Usage:
+        filedir = r'D:\01_Project\01_Fangang\01_Ref_211232\1\images/copy/' 
+        xmlfiles = glob.glob(filedir + '*.xml')
+        remObjectxml(filedir,xmlfiles,["person"],isSavas=False)
+    '''
+    
+    # xmlfile = os.path.join(xmldir, xmlfile)
+    
+    for xmlfile in xmlfiles:
+        # file = file.replace("\\", "/")
+        tree = ET.parse(xmlfile)
+        root = tree.getroot()
+        objects = root.findall("object")
+        for obj in objects:
+            name = obj.find('name').text
+            if name in classes:
+                for cpfile in findRelativeFiles(xmlfile[:-4]):
+                    move(cpfile,savedir)
+                
+
 def remObjectxml(xmldir,xmlfiles,classes,isSavas=True):
     '''
     Description: remove object from xmlfile in VOC
@@ -124,6 +154,8 @@ def remObjectxml(xmldir,xmlfiles,classes,isSavas=True):
         if isfindflag == 1:
             print(xmlpath,os.path.join(savedir,xmlfile))
             copyfile(xmlpath,os.path.join(savedir,xmlfile))
+            for cpfile in findRelativeFiles(xmlfile[:-4]):
+                copyfile(cpfile,savedir)
             tree.write(xmlpath)
 
 
@@ -216,28 +248,25 @@ def getObjectxml(xmlfile,classes):
     # print ("Current process file:",xmlfile)
     tree = ET.parse(xmlfile)
     root = tree.getroot()
+    size = root.findall("size")
+    w = int(size[0].find("width").text); h = int(size[0].find("height").text)
     objects = root.findall("object")
     objectlist = []
     try:
         len(objects)
         for obj in objects:
             name = obj.find('name').text
-            # if type(classes) != list:
-            #     bndbox = obj.find('bndbox')
-            #     box = [name]
-            #     for child in bndbox:
-            #         box.append(int(float(child.text)))
-            # else:
-            if name in classes:
+            if name in classes or classes == "all":
                 bndbox = obj.find('bndbox')
                 box = [name]
                 for child in bndbox:
                     box.append(int(float(child.text)))
                 objectlist.append(box)
+
     except:
         # No object
         print ("No object is found!")
-    return objectlist
+    return objectlist,w,h
 
 
 def read_xml(in_path):

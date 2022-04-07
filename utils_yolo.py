@@ -9,7 +9,12 @@ from utils_pre import *
 from utils_xml import *
 from utils_math import *
 
+
+
 pyscriptpath = r'D:\05_Trick\Trick'
+ImgType = ['*.jpg','*.jpeg','*.tif','*.png']
+VideoType = ['*.avi','*.mp4']
+
 configpath = os.path.join(pyscriptpath,"config.json")
 with open(configpath, 'r') as c:
     config = json.load(c)
@@ -34,77 +39,13 @@ def xmlfilefromobjdetect(infer,imglist,imgdir):
         print("%d/%d,Current process image:%s, " %(id+1,total,img))
  
 
-def main_create_person_xml(imgdir):
-    '''
-        Create person xml
-    '''
-    infer = PersonInfer(config["model"]["person"])
-    imgfiles = glob.glob(imgdir + '*.jpg')
-    imgfiles.extend(glob.glob(imgdir + '*.png'))
-    imgfiles.extend(glob.glob(imgdir + '*.tif'))
-    # print(imgfiles)
-    imgfiles = [i.replace("\\", "/").split("/")[-1].split(".json")[0] for i in imgfiles]
-    xmlfilefromobjdetect(infer,imgfiles,imgdir)
-
-def main_create_mask_xml(imgdir):
-    '''
-        Create mask xml
-    '''
-    infer = PersonInfer(config["model"]["mask"])
-    imgfiles = glob.glob(imgdir + '*.jpg')
-    imgfiles.extend(glob.glob(imgdir + '*.png'))
-    imgfiles.extend(glob.glob(imgdir + '*.tif'))
-    # print(imgfiles)
-    imgfiles = [i.replace("\\", "/").split("/")[-1].split(".json")[0] for i in imgfiles]
-    xmlfilefromobjdetect(infer,imgfiles,imgdir)
-    
-
-def main_create_alarm_xml(imgdir):
-    '''
-        Create alarm xml
-    '''
-    infer = PersonInfer(config["model"]["alarm"])
-    imgfiles = glob.glob(imgdir + '*.jpg')
-    imgfiles.extend(glob.glob(imgdir + '*.png'))
-    imgfiles.extend(glob.glob(imgdir + '*.tif'))
-    # print(imgfiles)
-    imgfiles = [i.replace("\\", "/").split("/")[-1].split(".json")[0] for i in imgfiles]
-    xmlfilefromobjdetect(infer,imgfiles,imgdir)
-
-def main_create_steel_xml(imgdir):
-    '''
-        Create steel xml
-    '''
-    infer = PersonInfer(config["model"]["steel"])
-    imgfiles = glob.glob(imgdir + '*.jpg')
-    imgfiles.extend(glob.glob(imgdir + '*.png'))
-    imgfiles.extend(glob.glob(imgdir + '*.tif'))
-    # print(imgfiles)
-    imgfiles = [i.replace("\\", "/").split("/")[-1].split(".json")[0] for i in imgfiles]
-    xmlfilefromobjdetect(infer,imgfiles,imgdir)
-    
-def main_create_phone_xml(imgdir):
-    '''
-        Create phone xml
-    '''
-    infer = PersonInfer(config["model"]["phone"])
-    imgfiles = glob.glob(imgdir + '*.jpg')
-    imgfiles.extend(glob.glob(imgdir + '*.png'))
-    imgfiles.extend(glob.glob(imgdir + '*.tif'))
-    # print(imgfiles)
-    imgfiles = [i.replace("\\", "/").split("/")[-1].split(".json")[0] for i in imgfiles]
-    xmlfilefromobjdetect(infer,imgfiles,imgdir)
 
 def main_create_xml(imgdir,model = config["model"]["phone"]):
     '''
         Create xml by infering 
     '''
     infer = PersonInfer(model)
-    imgfiles = glob.glob(imgdir + '*.jpg')
-    imgfiles.extend(glob.glob(imgdir + '*.png'))
-    imgfiles.extend(glob.glob(imgdir + '*.tif'))
-    # print(imgfiles)
-    imgfiles = [i.replace("\\", "/").split("/")[-1].split(".json")[0] for i in imgfiles]
+    _,imgfiles = getFiles(imgdir,ImgType)
     xmlfilefromobjdetect(infer,imgfiles,imgdir)
 
 if __name__ == "__main__":
@@ -115,24 +56,25 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\01_Project\01_Pangang\08_Video\train0303\0305\22\frame/"
+        file_dir = r"D:\01_Project\01_Pangang\08_Video\dataset\05_Test_video\alarm\test/"
 
     if action == "personxml":
-        print(main_create_person_xml.__doc__)
-        main_create_person_xml(file_dir)
+        print(main_create_xml.__doc__)
+        main_create_xml(file_dir,model = config["model"]["person"])
     elif action == "alarmxml":
-        print(main_create_alarm_xml.__doc__)
-        main_create_alarm_xml(file_dir)
+        print(main_create_xml.__doc__)
+        # main_create_xml(file_dir,model = config["model"]["alarm"])
+        main_create_xml(file_dir,model = config["model"]["person_alarm"])
     elif action == "maskxml":
-        print(main_create_mask_xml.__doc__)
-        main_create_mask_xml(file_dir)
+        print(main_create_xml.__doc__)
+        main_create_xml(file_dir,model = config["model"]["mask"])
     elif action == "steelxml":
-        print(main_create_steel_xml.__doc__)
-        main_create_steel_xml(file_dir)
+        print(main_create_xml.__doc__)
+        main_create_xml(file_dir,model = config["model"]["steel"])
     elif action == "phonexml":
-        print(main_create_phone_xml.__doc__)
-        main_create_phone_xml(file_dir)
+        print(main_create_xml.__doc__)
+        main_create_xml(file_dir,model = config["model"]["phone"])
     elif action == "smokexml":
-        print(main_create_phone_xml.__doc__)
+        print(main_create_xml.__doc__)
         main_create_xml(file_dir,model = config["model"]["smoke"])
     os.system("pause")

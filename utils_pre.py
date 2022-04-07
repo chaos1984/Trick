@@ -1,5 +1,5 @@
-from email.mime import image
-import enum
+#!/usr/bin/env python
+# coding:utf-8
 import os
 from stat import filemode
 import sys
@@ -15,10 +15,27 @@ from utils_cv import cv_show
 from shutil import copyfile,move
 from sklearn.model_selection import train_test_split
 import random
+import traceback
 
 ImgType = ['*.jpg','*.jpeg','*.tif','*.png']
 VideoType = ['*.avi','*.mp4']
 LabelType = ['*.xml']
+
+def window_xml(xmlpath,bboxes,window,cls=["person"]):
+    h = window[2]-window[0];w = window[3]-window[1];c=3
+
+    new_bbox = []
+    for bbox in bboxes:
+        new_xmin = max(bbox[1]-window[0],0);new_ymin = max(bbox[2]-window[1],0)
+        new_xmax = min(bbox[3]-window[0],w);new_ymax = min(bbox[4]-window[1],h)
+        if new_xmin >= new_xmax or new_ymin >= new_ymax :
+            pass
+        else:
+            if bbox[0] in cls:
+                temp = [new_xmin,new_ymin,new_xmax,new_ymax,1,cls.index(bbox[0])]
+                new_bbox.append(temp)
+    xmldic = {"size":{"w":str(w),"h":str(h),"c":str(c)},"object":new_bbox}
+    createObjxml(xmldic,xmlpath,cls)
 
 def findRelativeFiles(filepath):
     '''
@@ -127,7 +144,7 @@ def renFile(filedir,savedir,format,label,id=0):
 
 
 
-def getFrame(dir,flielist,intertime=100,startid=0,timeToStart = 1):
+def getFrame(dir,flielist,intertime=100,timeToStart = 1):
     '''
     Description: Extract frame from video
     Author: Yujin Wang
@@ -146,7 +163,6 @@ def getFrame(dir,flielist,intertime=100,startid=0,timeToStart = 1):
     '''
     savedir = mkFolder(dir,"frame")
     num = 0
-    id = startid 
     for index,file in enumerate(flielist):
         num += 1
         cap = cv2.VideoCapture()
@@ -173,21 +189,25 @@ def getFrame(dir,flielist,intertime=100,startid=0,timeToStart = 1):
         
         # get each frames and save
         frame_num = 0 
+        date = time.strftime("%Y-%m-%d", time.localtime())
         while True:
             
             ret, frame = cap.read()
             if ret != True:
                 break
-
-            if frame_num % (intertime*rate) == 0:
-                frametime = frame_num / rate + float((frameToStart-1)/rate)
-                # print(frametime,frameToStart,frame_num / (intertime*rate),float((frameToStart-1)/rate))
-                date = time.strftime("%Y-%m-%d", time.localtime())
-                img_path = os.path.join(savedir ,'_video' + str(num)+'_'+ str(frametime).replace('.','p')+'-'+date+".jpg")
+            frametime = round((frame_num +frameToStart-1)/ rate,2)
+            if intertime == 0:
+                filename = file[:-4] + "_" + str(frametime).replace('.','p') + ".jpg"
+                img_path = os.path.join(savedir ,filename)
                 print (img_path)
                 cv2.imwrite(img_path,frame)
-                id += 1
-            frame_num = frame_num + 1
+            else:    
+                if frame_num % (intertime*rate) == 0:
+                    filename = file[:-4] + "_" + str(frametime).replace('.','p') + ".jpg"
+                    img_path = os.path.join(savedir ,filename)
+                    print (img_path)
+                    cv2.imwrite(img_path,frame)
+            frame_num += 1
         
             # wait 10 ms and if get 'q' from keyboard  break the circle
             if cv2.waitKey(10) & 0xFF == ord('q'):
@@ -195,7 +215,43 @@ def getFrame(dir,flielist,intertime=100,startid=0,timeToStart = 1):
             
         cap.release()
 
-def VOC2Yolo(imgfiles,classes='all'):
+
+def Yolo2VOC(imgfiles,classes):
+    '''
+    Description: Get dest object information
+    Author: Yujin Wang
+    Date: 2022-1-6
+    Args:
+        yolofile[str]: .xml file from labelimg
+        classes[list]: Class name
+    Return:
+        obj[list]: obeject list,[['person', 592, 657, 726, 1077],['person', 592, 657, 726, 1077]]
+    Usage:
+        bboxlist = getObjectxml(yolofile,classes)
+    '''
+
+    # print ("Current process file:",yolofile)
+    total = len(imgfiles)
+    id = 1
+    for imgfile in imgfiles:
+        im = cv2.imread(imgfile)
+        im_h,im_w,im_c = im.shape
+        bbox = []
+        print("%d/%d Currrent image: %s" % (id, total, imgfile))
+        id += 1
+        try:
+            for line in open(imgfile[:-4]+'.txt'):
+
+                clsid,cx,cy,w,h = [float(i) for i in line.split()]
+                xmin,ymin,xmax,ymax =  xywh2xyxy([im_h,im_w],[cx,cy,w,h])
+                bbox.append([xmin,ymin,xmax,ymax,0,clsid])
+            xmldic = {"size": {"w": str(im_w), "h": str(im_h), "c": str(im_c)}, "object": bbox}
+            createObjxml(xmldic, imgfile, cls=classes, xmlfile=None)
+
+        except:
+            print ("No yolo text file found!",imgfile)
+
+def VOC2Yolo(xmlfiles,classes='all'):
     '''
     Description: Change xml to yolo format
     Author: Yujin Wang
@@ -210,29 +266,26 @@ def VOC2Yolo(imgfiles,classes='all'):
         classes = ["mask","nomask"]
         VOC2Yolo(xmlfiles,classes)
     '''
-    total = len(imgfiles)
+    total = len(xmlfiles)
     id = 1
-    for file in imgfiles :
-        print(file)
+    for file in xmlfiles :
         file = file.replace("\\", "/")
         # a = cv2.imread(file.replace(".xml",".jpg"))
-        try:
-            height, width, _ = cv2.imread(file).shape
-        except:
-            print("Image file cannot be readed by opencv!")
         print("%d/%d Currrent image: %s" %(id,total,file))
         out_file = open(file.replace(file[-4:],".txt"),'w') 
-        bboxlist = getObjectxml(file.replace(file[-4:],".xml"),classes)
+        bboxlist,width,height = getObjectxml(file,classes)
         for bbox in bboxlist:
             try:
                 cls_id = classes.index(bbox[0])
                 b = (float(bbox[1]), float(bbox[3]), float(bbox[2]), float(bbox[4]))
-                bb = convert((width, height), b)
+                bb = xyxy2xywh((width, height), b)
                 out_file.write(str(cls_id) + " " + " ".join([str(a) for a in bb]) + '\n')
             except:
                 print("No object found in xml, file:%s" %(file))
         id += 1
         out_file.close()
+        
+
 
 def sampleset_paddle(filelist,dir,fn = "train.txt"):
     '''
@@ -318,9 +371,21 @@ def createSquarImg(imgfiles):
 
     return img
 
+def paddingSquare(img):
+    height, width, _ = img.shape
+    if height > width:
+        padding = np.ones([height, int((height - width) / 2), 3], dtype=np.uint8) * 0
+        img = np.concatenate([padding, img], axis=1)
+        img = np.concatenate([img, padding], axis=1)
+    else:
+        padding = np.ones([int((width - height) / 2), width, 3], dtype=np.uint8) * 0
+        img = np.concatenate([padding, img], axis=0)
+        img = np.concatenate([img, padding], axis=0)
+    pad_height, pad_width, _ = img.shape
+    return img,int((pad_height - height)/2),int((pad_width - width)/2)
 
 
-def saveCropImg(imgdir,imgfile,clsname,scale=0):
+def saveCropImg(imgdir,imgfile,clsname,scale=0.1,square = True):
     '''
     Description: Crop image accoding to the bounding box from xml, and save the cropped image
     Author: Yujin Wang
@@ -334,32 +399,45 @@ def saveCropImg(imgdir,imgfile,clsname,scale=0):
     '''
 
     savedir = mkFolder(imgdir,clsname +"_" +'crop')
-    # savedir = imgdir +clsname +"_" +'crop' + os.sep
-    
     xmlfile = imgfile.replace(imgfile[-4:],".xml")
-    objectlist = getObjectxml(imgdir + xmlfile,[clsname])
+    objectlist,w,h = getObjectxml(imgdir + xmlfile,[clsname])
     img = cv2.imread(imgdir +imgfile)
+
+    img,hoffset,woffset = paddingSquare(img)
     height, width, _ = img.shape
+
     id = 0
-    
-    if len(objectlist)>0:
+    if len(objectlist) > 0 and objectlist[0]!=[]:
         for object in objectlist:
             id += 1
-            xmin = int(object[1]);
-            ymin = int(object[2]);
-            xmax = int(object[3]);
-            ymax = int(object[4])
+            xmin = int(object[1])+woffset;
+            ymin = int(object[2])+hoffset;
+            xmax = int(object[3])+woffset;
+            ymax = int(object[4])+hoffset
             h = ymax - ymin; w = xmax - xmin
+            scale = int((max(w,h)*(scale+1)-max(w,h))/2)
+            offset = int(abs((h - w) / 2))
+            if square == True:
+                if h > w:
+                    y1 = ymin - scale;y2 = ymax + scale;x1 = xmin - offset - scale; x2 = xmax + offset + scale
+                    object = [[scale+ offset, scale , w + offset + scale, h + scale, 0, 0]]
 
-            x1, y1 = max(int(xmin-scale*w/2),0), max(int(ymin-scale*h/2),0)
-            x2, y2 = min(int(xmax+scale*w/2),width), min(int(ymax+scale*h/2),height)
+                else:
+                    y1 = ymin - offset - scale;y2 = ymax + offset + scale; x1 = xmin-scale;x2 = xmax+scale
+                    object = [[scale, scale+offset, w+scale, h+offset+scale, 0, 0]]
+            else:
+                y1 = ymin-scale; y2 = ymax+scale; x1 = xmin-scale; x2 = xmax+scale
 
-            dst = img[y1:y2,x1:x2]
-            saveimg = savedir + imgfile[:-4] + '_' + clsname + '_' + str(id)+'.jpg'
-            h,w,c = dst.shape
-            xmldic = {"size":{"w":str(w),"h":str(h),"c":str(c)},"object":[[0,0,w,h,0,0]]}
-            createObjxml(xmldic,saveimg,cls={"0":clsname},xmlfile='',isextend=False)
-            cv2.imwrite(saveimg,dst)
+            ymin = max(0, y1);ymax = min(y2, height); xmin = max(0, x1);xmax = min(x2, width)
+            crop_img = img[ymin:ymax, xmin:xmax]
+            h, w, c = crop_img.shape
+            xmldic = {"size": {"w": str(w), "h": str(h), "c": str(c)},
+                      "object": object}
+            saveimg = os.path.join(savedir, imgfile[:-4] + '_' + clsname + '_' + str(id)+'.jpg')
+            # h,w,c = crop_img.shape
+
+            createObjxml(xmldic,saveimg,cls=[clsname])
+            cv2.imwrite(saveimg,crop_img)
             
 def plotRectBox(img,objectlist):
     '''
@@ -449,6 +527,37 @@ def plotFigArray(imglist:list,imgshape=(0,0)):
     # cv_show("canvas", canvas)
     return canvas
 
+def Video2Video(videofile,savedir,interval,offset):
+    print(videofile)
+    cap = cv2.VideoCapture()
+    cap.open(videofile)
+    rate = cap.get(cv2.CAP_PROP_FPS)
+    
+    totalFrameNumber = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    print("Current video fps:{}".format(rate))
+    print("Current video frame No.:{}".format(totalFrameNumber))
+    if offset+interval > totalFrameNumber:
+        print("offset+interval > totalFrameNumber")
+        return
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    print(savedir)
+    videoWriter = cv2.VideoWriter(savedir, fourcc, 25.0, (w,h)) 
+    n = 0
+    while True:
+        # print("ok")
+        ret, frame = cap.read()
+        # video_deque.appendleft(frame)
+        if ret != True:
+            break 
+        if ((n+offset)%interval) == 0:    
+            videoWriter.write(frame)
+        else:
+            pass
+        n += 1
+    cap.release()
+    videoWriter.release()
 
 
 # MAIN PROCESSE
@@ -457,10 +566,10 @@ def main_extract_frame_from_video(videodir):
         Extract frame from video
     '''
     _,filelist = getFiles(videodir,VideoType)
-    startid = int(input("Start image ID:"))
+    # startid = int(input("Start image ID:"))
     interval = float(input("Interval time(s):"))
     OffsetTime = float(input("Offset time(s):"))
-    getFrame(videodir,filelist,interval,startid,OffsetTime)
+    getFrame(videodir,filelist,interval,OffsetTime)
 
 
 
@@ -475,17 +584,25 @@ def main_remove_obj_from_xml(xmldir):
  
 
 
-def main_change_voc_to_yolo(imgdir):
+def main_change_voc_to_yolo(xmldir):
     '''
         Change VOC to Yolo
     '''
-    imgfiles,_ = getFiles(imgdir,ImgType)
+    xmlfiles,_ = getFiles(xmldir,LabelType)
     cls_name = input("Please input class you want(person,mask.Note: has the same sort as yaml):")
     # format = input("Please input image file format:")
     cls_name = cls_name.split(',')
 
-    VOC2Yolo(imgfiles,cls_name)
+    VOC2Yolo(xmlfiles,cls_name)
 
+def main_change_yolo_to_voc(imgdir):
+    '''
+        Change  Yolo to Voc
+    '''
+    imgfiles,_ = getFiles(imgdir,ImgType)
+    cls_name = input("Please input class you want(person,mask.Note: has the same sort as yaml):")
+    cls_name = cls_name.split(',')
+    Yolo2VOC(imgfiles,cls_name)
 
 def main_change_cls_name(xmldir):
     '''
@@ -549,15 +666,24 @@ def main_crop_object_img(imgdir):
         Crop objet image
     '''
     clsname = input("Input class name:")
+    scale = float(input("Input scale factor(max(h,w)):"))
+
+    square = True if input("Crop image with padding(Y/N):") == "Y" else False
+
     clsname = clsname.split(',')
     _,imgfiles = getFiles(imgdir,ImgType)
 
     total = len(imgfiles)
     id = 1
+
     for file in imgfiles:
         print("%d/%d Currrent image: %s" %(id,total,file))
-        for cls in clsname:
-            saveCropImg(imgdir,file,cls,scale=0)
+        try:
+            for cls in clsname:
+                saveCropImg(imgdir,file,cls,scale,square)
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
         id += 1
 
 
@@ -571,7 +697,7 @@ def main_plot_bbox(imgdir):
     cls = cls.split(",")
     total = len(imgfiles)
     for id,file in enumerate(imgfiles):
-        bbox = getObjectxml(imgfull[id].replace(file[-4:],".xml"),cls)
+        bbox,_,_ = getObjectxml(imgfull[id].replace(file[-4:],".xml"),cls)
         img = cv2.imread(imgdir + file)
         img = plotRectBox(img,bbox)
         print("%d/%d Currrent image: %s" %(id+1,total,file))
@@ -602,7 +728,7 @@ def main_create_square_image_samples(filedir1):
             imgfiles2 =  imgfiles1.copy()
             concimgs.extend([random.sample(imgfiles2,1)[0] for i in range(fignum-1)])
         img = createSquarImg(concimgs)
-        xmlfile = [file.replace(file[-4:],".xml") for file in concimgs]
+        xmlfile = [file.replace(file[-4:],"xml") for file in concimgs]
         xmlfile = combineXMLinDirection(xmlfile,edge,fignum,padding,direction)
         imgfilepath = savedir,str(id) / '.tif'
         cv2.imwrite(imgfilepath,img)
@@ -652,6 +778,51 @@ def main_change_hsv(filedir):
         img = changeHSV(img)
         cv2.imwrite(os.path.join(str(savedir),file),img)
         
+def main_clip_square_image(imgdir):
+    savedir = mkFolder(imgdir,"square_dataset")
+    imgfull,imgfiles = getFiles(imgdir,ImgType)
+    total = len(imgfiles)
+    cls = input("Class you want to save(person,mask.Note: has the same sort as yaml): ")
+    cls = cls.split(",")
+    for id,file in enumerate(imgfiles):
+        print("%d/%d Currrent image: %s" %(id+1,total,file))
+        bbox,w,h = getObjectxml(imgfull[id].replace(file[-4:],".xml"),classes="all")
+        s = min(w,h);l = max(w,h) ;  n = int(np.round(w/h+0.5)) if w>h else int(np.round(h/w+0.5));
+        offset = int(s - l/n)
+        img = cv2.imread(imgdir + file)
+        start = np.linspace(0,l-s,n)
+        for i in start:
+            i = int(i)
+            imgpath = str(savedir / str(file.replace(file[-4:],"_"+str(i)+file[-4:])))
+            xmlpath = imgpath.replace(imgpath[-4:], ".xml")
+
+            if w > h:
+                # print(s*i-offset*(i+1),s*i-offset*(i+1)+s)
+                cv2.imwrite(imgpath,img[0:s,i:i+s])
+                window_xml(xmlpath,bbox,[i,0,i+s,s],cls)
+            else:
+                cv2.imwrite(imgpath,img[i:i+s,0:s],cls)
+                window_xml(xmlpath,bbox,[0,i,s,i+s])
+
+def main_video2video(videodir):
+    '''
+        pic to video 
+    '''
+    _,filelist = getFiles(videodir,VideoType)
+    interval = int(input("Input interval frame number:"))
+    offset = int(input("Input offset frame number:"))
+    savedir = mkFolder(videodir,'video')
+    for file in filelist:
+        Video2Video(os.path.join(videodir,file),os.path.join(savedir,file),interval,offset)
+
+def main_movobject(xmldir):
+    '''
+        Move file included object to object dir  
+    '''
+    xmlfiles,_ = getFiles(xmldir,LabelType)
+    cls = input("Class name(only one label,e.g. person):")
+    savedir = mkFolder(xmldir,cls)
+    movObjectxml(xmldir,xmlfiles,cls,savedir)
 
 if __name__ == "__main__":
     try:
@@ -662,7 +833,7 @@ if __name__ == "__main__":
     except:
         action = ""
         file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\yolov5\data\images/"
-        file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\dataset\alarm_arm\test\far/"
+        file_dir = r"D:\01_Project\01_Pangang\08_Video\test0331\person_down\jianwei\test/"
         # pass
     if action == "getFrame":
         print(main_extract_frame_from_video.__doc__)
@@ -700,4 +871,18 @@ if __name__ == "__main__":
     elif action == "changeHSV":
         print(main_change_hsv.__doc__)
         main_change_hsv(file_dir)
+    elif action == "clipsquareimage":
+        print(main_change_hsv.__doc__)
+        main_clip_square_image(file_dir)
+    elif action == "changeYolo2Voc":
+        print(main_change_yolo_to_voc.__doc__)
+        main_change_yolo_to_voc(file_dir)
+    elif action == "reduceVdieoFrame":
+        print(main_video2video.__doc__) 
+        main_video2video(file_dir)
+    elif action == "movObject":
+        print(main_movobject.__doc__) 
+        main_movobject(file_dir)
+    main_crop_object_img(file_dir)
+    # main_extract_frame_from_video(file_dir)
     os.system("pause")
