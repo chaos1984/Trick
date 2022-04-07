@@ -415,18 +415,18 @@ def saveCropImg(imgdir,imgfile,clsname,scale=0.1,square = True):
             xmax = int(object[3])+woffset;
             ymax = int(object[4])+hoffset
             h = ymax - ymin; w = xmax - xmin
-            scale = int((max(w,h)*(scale+1)-max(w,h))/2)
+            scale1 = int((max(w,h)*(scale+1)-max(w,h))/2)
             offset = int(abs((h - w) / 2))
             if square == True:
                 if h > w:
-                    y1 = ymin - scale;y2 = ymax + scale;x1 = xmin - offset - scale; x2 = xmax + offset + scale
-                    object = [[scale+ offset, scale , w + offset + scale, h + scale, 0, 0]]
+                    y1 = ymin - scale1 ;y2 = ymax + scale1 ;x1 = xmin - offset - scale1 ; x2 = xmax + offset + scale1
+                    object = [[scale1 + offset, scale1  , w + offset + scale1 , h + scale1 , 0, 0]]
 
                 else:
-                    y1 = ymin - offset - scale;y2 = ymax + offset + scale; x1 = xmin-scale;x2 = xmax+scale
-                    object = [[scale, scale+offset, w+scale, h+offset+scale, 0, 0]]
+                    y1 = ymin - offset - scale1 ;y2 = ymax + offset + scale1 ; x1 = xmin-scale1 ;x2 = xmax+scale1
+                    object = [[scale1 , scale1 +offset, w+scale1 , h+offset+scale1 , 0, 0]]
             else:
-                y1 = ymin-scale; y2 = ymax+scale; x1 = xmin-scale; x2 = xmax+scale
+                y1 = ymin-scale1 ; y2 = ymax+scale1 ; x1 = xmin-scale1 ; x2 = xmax+scale1
 
             ymin = max(0, y1);ymax = min(y2, height); xmin = max(0, x1);xmax = min(x2, width)
             crop_img = img[ymin:ymax, xmin:xmax]
