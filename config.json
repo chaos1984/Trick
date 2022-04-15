@@ -12,8 +12,8 @@
 		},
 		"person": {
 			"detect:":"yolo",
-			"weights": "D:/05_Trick/modellib/person_smoke/best.pt",
-			"data": "D:/05_Trick/modellib/person_smoke/pan_steel_smoke_phone_4.yaml",
+			"weights": "D:/05_Trick/modellib/coco80/best.pt",
+			"data": "D:/05_Trick/modellib/coco80/coco128.yaml",
 			"save_dir":"./",
 			"conf_thres": 0.8,
 			"iou_thres": 0.45,
@@ -42,7 +42,7 @@
 			"weights": "D:/05_Trick/modellib/alarm/best.pt",
 			"data": "D:/05_Trick/modellib/alarm/alarm.yaml",
 			"save_dir":"./",
-			"conf_thres": 0.2,
+			"conf_thres": 0.1,
 			"iou_thres": 0.45,
 			"device": "cpu"
 		},
@@ -51,7 +51,7 @@
 			"weights": "D:/05_Trick/modellib/person_alarm/best.pt",
 			"data": "D:/05_Trick/modellib/alarm/alarm.yaml",
 			"save_dir":"./",
-			"conf_thres": 0.2,
+			"conf_thres": 0.1,
 			"iou_thres": 0.45,
 			"device": "cpu"
 		},
@@ -73,6 +73,87 @@
 			"iou_thres": 0.45,
 			"device": "cpu"
 		}
-	}
+	},
+	"rules": {
+		"alarm": {
+			"name": [
+				"person",
+				"alarm",
+				"noalarm",
+				"alarm instrument"
+			],
+			"confidence": [
+				0.1,
+				0.1,
+				0.1,
+				0.1
+			],
+			"cases": [
+				"True",
+				"False"
+			],
+			"priority": {
+				"person": {
+					"alarm": true,
+					"noalarm": {
+						"alarm instrument": true
+					}
+				}
+			}
+		},
+		"mask": {
+			"name": [
+				"mask",
+				"nomask"
+			],
+			"confidence": [
+				0.4,
+				0.6
+			],
+			"cases": [
+				"True",
+				"False"
+			],
+			"priority": {
+				"mask": true
+			}
+		}
+	},
+	"DOE": {
+		"alarm": {
+			"person": [
+				0.01,
+				0.99,
+				10
+			],
+			"alarm instrument": [
+				0.01,
+				0.99,
+				10
+			],
+			"alarm": [
+				0.01,
+				0.99,
+				10
+			],
+			"noalarm": [
+				0.01,
+				0.99,
+				10
+			]
+		},
+		"mask": {
+			"mask": [
+				0.4,
+				0.99,
+				10
+			],
+			"nomask": [
+				0.4,
+				0.99,
+				10
+			]
+		}
 
+	}
 }

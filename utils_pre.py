@@ -101,6 +101,8 @@ def getFiles(folddir,typelist):
     Usage:
     '''
     files = []
+
+    folddir = folddir + os.path.sep
     for type in typelist:
         files.extend(glob.glob(folddir + type))
     files_wodir = [i.replace("\\", "/").split("/")[-1].split(".json")[0] for i in files]
@@ -427,6 +429,7 @@ def saveCropImg(imgdir,imgfile,clsname,scale=0.1,square = True):
                     object = [[scale1 , scale1 +offset, w+scale1 , h+offset+scale1 , 0, 0]]
             else:
                 y1 = ymin-scale1 ; y2 = ymax+scale1 ; x1 = xmin-scale1 ; x2 = xmax+scale1
+                object = [[0,0,w,h, 0, 0]]
 
             ymin = max(0, y1);ymax = min(y2, height); xmin = max(0, x1);xmax = min(x2, width)
             crop_img = img[ymin:ymax, xmin:xmax]
@@ -883,6 +886,5 @@ if __name__ == "__main__":
     elif action == "movObject":
         print(main_movobject.__doc__) 
         main_movobject(file_dir)
-    main_crop_object_img(file_dir)
     # main_extract_frame_from_video(file_dir)
     os.system("pause")

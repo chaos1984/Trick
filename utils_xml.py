@@ -73,7 +73,10 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
         root = tree.getroot()
     for id,item in enumerate(res["object"]):
         # xmin,xmax,ymin,ymax = xywh2xyxy(*item)
-        xmin, ymin, xmax, ymax = int(item[0]), int(item[1]), int(item[2]), int(item[3])
+        try:
+            xmin, ymin, xmax, ymax,confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]),float(item[4])
+        except:
+            xmin, ymin, xmax, ymax, confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), 0
         obj = create_node("object","")
         obj.append(create_node("name",cls[int(item[-1])]))
         obj.append(create_node("pose",'Unspecified'))
@@ -84,6 +87,7 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
         obj[4].append(create_node("ymin",str(max(ymin-1,0))))
         obj[4].append(create_node("xmax",str(min(xmax+1,int(res["size"]["w"])))))
         obj[4].append(create_node("ymax",str(min(ymax+1,int(res["size"]["h"])))))
+        obj[4].append(create_node("confidence", str(confidence)))
         root.append(obj)
 
     tree.write(imgpath.replace(imgpath[-4:],".xml"))
@@ -252,20 +256,22 @@ def getObjectxml(xmlfile,classes):
     w = int(size[0].find("width").text); h = int(size[0].find("height").text)
     objects = root.findall("object")
     objectlist = []
-    try:
-        len(objects)
+
+    if len(objects) !=0:
         for obj in objects:
             name = obj.find('name').text
             if name in classes or classes == "all":
                 bndbox = obj.find('bndbox')
                 box = [name]
-                for child in bndbox:
-                    box.append(int(float(child.text)))
-                objectlist.append(box)
 
-    except:
-        # No object
-        print ("No object is found!")
+                for child in bndbox:
+                    if len(child.text.split(".")) != 2:
+                        box.append(int(child.text))
+                    else:
+                        box.append(float(child.text))
+                objectlist.append(box)
+    else:
+        pass
     return objectlist,w,h
 
 
