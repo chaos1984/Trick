@@ -42,7 +42,7 @@
 			"weights": "D:/05_Trick/modellib/alarm/best.pt",
 			"data": "D:/05_Trick/modellib/alarm/alarm.yaml",
 			"save_dir":"./",
-			"conf_thres": 0.1,
+			"conf_thres": 0.01,
 			"iou_thres": 0.45,
 			"device": "cpu"
 		},
@@ -51,7 +51,7 @@
 			"weights": "D:/05_Trick/modellib/person_alarm/best.pt",
 			"data": "D:/05_Trick/modellib/alarm/alarm.yaml",
 			"save_dir":"./",
-			"conf_thres": 0.1,
+			"conf_thres": 0.01,
 			"iou_thres": 0.45,
 			"device": "cpu"
 		},
@@ -83,14 +83,15 @@
 				"alarm instrument"
 			],
 			"confidence": [
-				0.1,
-				0.1,
-				0.1,
-				0.1
+				0.01,
+				0.77,
+				0.77,
+				0.2
 			],
 			"cases": [
-				"True",
-				"False"
+				"BG_Back",
+				"Alarm",
+				"noAlarm"
 			],
 			"priority": {
 				"person": {
@@ -111,6 +112,7 @@
 				0.6
 			],
 			"cases": [
+				"BG_Back",
 				"True",
 				"False"
 			],
@@ -122,9 +124,9 @@
 	"DOE": {
 		"alarm": {
 			"person": [
-				0.01,
+				0.8,
 				0.99,
-				10
+				4
 			],
 			"alarm instrument": [
 				0.01,
@@ -144,14 +146,14 @@
 		},
 		"mask": {
 			"mask": [
-				0.4,
+				0.2,
 				0.99,
-				10
+				5
 			],
 			"nomask": [
-				0.4,
+				0.1,
 				0.99,
-				10
+				5
 			]
 		}
 

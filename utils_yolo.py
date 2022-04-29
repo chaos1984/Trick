@@ -10,6 +10,8 @@ from utils_xml import *
 import pandas as pd
 from utils_math import *
 import matplotlib.pyplot as plt
+plt.rcParams['figure.figsize']=(10, 10)
+import traceback
 
 
 
@@ -67,7 +69,6 @@ def check_confidence_conexit(bboxs,cls,conf):
     '''
     res = [False for i in range(len(cls))]
     checkres = dict(zip(cls,res))
-
     for bbox in bboxs:
         clsname = bbox[0]; clsconf = bbox[5]
         conf_threshold = conf[cls.index(clsname)]
@@ -92,7 +93,7 @@ def count(d):
     '''
     return max(count(v) if isinstance(v, dict) else 0 for v in d.values()) + 1
 
-def decison(ret,checkdict):
+def decison(ret,checkdict,cases = ["Background","True","False"]):
     '''
       Description: Make decison based on the rules
       Author: Yujin Wang
@@ -104,23 +105,28 @@ def decison(ret,checkdict):
           Boolaan
       Usage:
     '''
-    for i in range(count(checkdict)):
+    loop = count(checkdict)
+    for i in range(loop):
         klist = list(checkdict.keys())
+
         checkcount = 0
         for k in klist:
             # print(type(ret[k]),type(checkdict[k]))
             if ret[k] == False:
                 checkcount += 1
-                if checkcount == len(klist):
-                    return False
+                if checkcount == len(klist) :
+                    if i != loop-1:
+                        return cases[0]                       # BG(ignore)
+                    else:
+                        return cases[2]                       # False
             elif ret[k] == checkdict[k]:
-                return True
+                return cases[1]                               # True
             else:
                 if isinstance(checkdict[k],dict):
                     checkdict = checkdict[k]
                 else:
                     pass
-    return False
+    return cases[2]
 
 
 
@@ -160,22 +166,20 @@ def checkPerformance(cases,xmldir,checkdict,cls,conf):
     '''
     res = []
     for case in cases:
-        caseclasss = True if case in ["True", "Positive"] else False
-
         casedir = os.path.join(xmldir, case)
         xmlfiles, _ = getFiles(casedir, LabelType)
         id = 0
         for xmlfile in xmlfiles:  # check xml file
             id += 1
             bboxs, _, _ = getObjectxml(xmlfile, cls)
-            filterbbox = check_confidence_conexit(bboxs, cls, conf)  #
-            dec = decison(filterbbox, checkdict)
-            res.append([xmlfile, caseclasss, dec])
+            filterbox = check_confidence_conexit(bboxs, cls, conf)  #
+            dec = decison(filterbox, checkdict,cases = cases)
+            res.append([xmlfile, case, str(dec)])
     return res
 
 
 
-def cm_plot(y_act, y_pred,imgdir,plotflag = True):
+def cm_plot(cases,conf, y_act, y_pred,imgdir,plotflag = True):
     '''
     y: 真实值
     y_pred:预测值
@@ -184,19 +188,28 @@ def cm_plot(y_act, y_pred,imgdir,plotflag = True):
     from sklearn.metrics import confusion_matrix  # 导入混淆矩阵函数
     from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score
     from sklearn.metrics import PrecisionRecallDisplay
-    cm = confusion_matrix(y_act, y_pred)  # 混淆矩阵
-    accuracy = accuracy_score(y_act, y_pred); precision = precision_score(y_act, y_pred)
-    recall = recall_score(y_act, y_pred); f1 = f1_score(y_act, y_pred)
+    cm = confusion_matrix(y_act, y_pred,labels = cases ) # 混淆矩阵
+    accuracy = accuracy_score(y_act, y_pred);
+    precision = precision_score(y_act, y_pred,average='weighted')
+    recall = recall_score(y_act, y_pred,average='weighted');
+    f1 = f1_score(y_act, y_pred,average='weighted')
+
     if plotflag:
+
         plt.matshow(cm, cmap=plt.cm.Greens)
         plt.colorbar()  # 颜色标签
         for x in range(len(cm)):  # 数据标签
             for y in range(len(cm)):
                 plt.annotate(cm[x, y], xy=(y, x), verticalalignment='center', horizontalalignment='center')
         plt.ylabel('True label')  # 坐标轴标签
+        # labels=["BG","False","True"]
+        plt.yticks([0,1,2],cases)
+        plt.xticks([0,1,2],cases)
         plt.xlabel('Predicted label')  # 坐标轴标签
-        plt.title("A:{} P:{} R:{} F1:{}".format(round(accuracy,2),round(precision,2),round(recall,2),round(f1,2)))
-        plt.savefig(imgdir+"/Confuse_Matrix.jpg")
+        conf = [round(i,2) for i in conf]
+        plt.title("{}\nA:{} P:{} R:{} F1:{}\n".format(conf,round(accuracy,2),round(precision,2),round(recall,2),round(f1,2)))
+
+        plt.savefig(imgdir+"/Confuse_Matrix.jpg",dpi=100)
     return {"accuracy":accuracy,"precision":precision,"recall":recall,"f1":f1}
 
 # main program
@@ -215,25 +228,36 @@ def main_split2class(xmldir,rules):
     '''
     cls = rules['name']
     conf = rules['confidence']
+    cases =  rules["cases"]
     checkdict = rules['priority']
     xmlfiles, _ = getFiles(xmldir, LabelType)
-    savedir_true = mkFolder(xmldir,"True")
-    savedir_false = mkFolder(xmldir, "False")
+    savedir_bg = mkFolder(xmldir, cases[0])
+    savedir_true = mkFolder(xmldir,cases[1])
+    savedir_false = mkFolder(xmldir, cases[2])
     total = len(xmlfiles)
     id = 0
     for xmlfile in xmlfiles:
         id += 1
-        bboxs, _, _ = getObjectxml(xmlfile, cls)
-        ret = check_confidence_conexit(bboxs, cls, conf)
-        # res.append([xmlfile, caseclasss, decison(ret, checkdict)])
         print("%d/%d,Current process image:%s" % (id, total, xmlfile))
-        if decison(ret,checkdict):
-            for cpfile in findRelativeFiles(xmlfile):
-                move(cpfile, savedir_true)
-        else:
-            for cpfile in findRelativeFiles(xmlfile):
-                move(cpfile, savedir_false)
+        try:
+            bboxs, _, _ = getObjectxml(xmlfile, cls)
+            filterbox = check_confidence_conexit(bboxs, cls, conf)
+            dec = decison(filterbox, checkdict,cases = cases)
+            if dec == cases[0]:
+                for cpfile in findRelativeFiles(xmlfile):
+                    move(cpfile, savedir_bg)
+            elif dec == cases[1]:
+                for cpfile in findRelativeFiles(xmlfile):
+                    move(cpfile, savedir_true)
+            elif dec == cases[2]:
+                for cpfile in findRelativeFiles(xmlfile):
+                    move(cpfile, savedir_false)
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
 
+
+# def comaparepred(confs,)
 
 def main_checkConfidence(xmldir,rules,DOE = None):
     '''
@@ -258,19 +282,34 @@ def main_checkConfidence(xmldir,rules,DOE = None):
         resfile = "/resdata.csv"
     report = []
     total = len(confs)
+    maxf1 = 0
+    best = []
+
     for id,conf in enumerate(confs): # Loopover all parameters
         print("{}/{}:{}".format(id+1,total,conf))
         res = checkPerformance(cases,xmldir,checkdict,cls,conf)                    # Judge the class
-        res = pd.DataFrame(res, columns=["File", "Actual", "Prediction"]) #
-        eva = cm_plot(res['Actual'], res["Prediction"], xmldir,plotflag = plotflag)
+        res = pd.DataFrame(res, columns=["File", "Actual", "Prediction"])
+        eva = cm_plot(cases,conf,res['Actual'], res["Prediction"], xmldir,plotflag = plotflag)
         temp = list(conf)
         temp1 = list(eva.values())
         temp.extend(temp1)
         report.append(temp)
+        if eva["f1"] > maxf1:
+            maxf1 = eva["f1"]
+
+            best = conf
+            print(best, maxf1)
     temp = list(eva.keys())
     cls.extend(temp)
     resdata = pd.DataFrame(report,columns=cls)
     resdata.to_csv(xmldir+resfile)
+    if DOE:
+        print(f"Best res:{best}")
+        res = checkPerformance(cases, xmldir, checkdict, cls, best)
+        res = pd.DataFrame(res, columns=["File", "Actual", "Prediction"])
+        cm_plot(cases, best, res['Actual'], res["Prediction"], xmldir, plotflag=True)
+
+    res.to_csv(xmldir + "Actual_prediction.csv")
 
 if __name__ == "__main__":
     try:
@@ -280,38 +319,45 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\01_Project\01_Pangang\08_Video\dataset\05_Test_video\mask\fenlai/"
-
-    if action == "personxml":
-        print(main_create_xml.__doc__)
-        main_create_xml(file_dir,model = config["model"]["person"])
-    elif action == "alarmxml":
-        print(main_create_xml.__doc__)
-        main_create_xml(file_dir,model = config["model"]["alarm"])
-        main_create_xml(file_dir,model = config["model"]["person_alarm"])
-    elif action == "maskxml":
-        print(main_create_xml.__doc__)
-        main_create_xml(file_dir,model = config["model"]["mask"])
-    elif action == "steelxml":
-        print(main_create_xml.__doc__)
-        main_create_xml(file_dir,model = config["model"]["steel"])
-    elif action == "phonexml":
-        print(main_create_xml.__doc__)
-        main_create_xml(file_dir,model = config["model"]["phone"])
-    elif action == "smokexml":
-        print(main_create_xml.__doc__)
-        main_create_xml(file_dir,model = config["model"]["smoke"])
-    # main_create_xml(file_dir, model=config["model"]["person_alarm"])
-    elif action == "checkconfidence":
-        print(main_checkConfidence.__doc__)
-        name = input("Object rules for check(alarm,mask):")
-        main_checkConfidence(file_dir,rules=config["rules"][name])
-    elif action == "moveimage2class":
-        print(main_split2class.__doc__)
-        name = input("Object rules for check(alarm,mask):")
-        main_split2class(file_dir,rules=config["rules"][name])
-    elif action == "DOEConfidence":
-        print(main_checkConfidence.__doc__)
-        name = input("Object rules for check(alarm,mask):")
-        main_checkConfidence(file_dir,rules=config["rules"][name],DOE=config["DOE"][name])
+        file_dir = r"D:\01_Project\01_Pangang\08_Video\dataset\Test\alarm/"
+    try:
+        if action == "personxml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["person"])
+        elif action == "alarmxml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["alarm"])
+            main_create_xml(file_dir,model = config["model"]["person_alarm"])
+        elif action == "maskxml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["mask"])
+        elif action == "steelxml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["steel"])
+        elif action == "phonexml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["phone"])
+        elif action == "smokexml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["smoke"])
+        # main_create_xml(file_dir, model=config["model"]["person_alarm"])
+        elif action == "checkconfidence":
+            print(main_checkConfidence.__doc__)
+            name = input("Object rules for check(alarm,mask):")
+            main_checkConfidence(file_dir,rules=config["rules"][name])
+        elif action == "moveimage2class":
+            print(main_split2class.__doc__)
+            name = input("Object rules for check(alarm,mask):")
+            main_split2class(file_dir,rules=config["rules"][name])
+        elif action == "DOEConfidence":
+            print(main_checkConfidence.__doc__)
+            name = input("Object rules for check(alarm,mask):")
+            main_checkConfidence(file_dir,rules=config["rules"][name],DOE=config["DOE"][name])
+    except Exception as e:
+        print(e)
+        print(traceback.format_exc())
+    # main_split2class(file_dir, rules=config["rules"]["alarm"])
+    # main_checkConfidence(file_dir,rules=config["rules"]["alarm"],DOE=config["DOE"]["alarm"])
+    # main_checkConfidence(file_dir, rules=config["rules"]["alarm"])
+    # main_split2class(file_dir, rules=config["rules"]["alarm"])
     os.system("pause")
