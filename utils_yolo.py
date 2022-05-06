@@ -23,7 +23,7 @@ configpath = os.path.join(pyscriptpath,"config.json")
 with open(configpath, 'r') as c:
     config = json.load(c)
 sys.path.append(config["yolov5"])
-from Detectbase.PersonInfer import PersonInfer
+from Detectbase.PersonInfer import PersonInfer,Validation
 
 
 def xmlfilefromobjdetect(infer,imglist,imgdir):
@@ -189,6 +189,9 @@ def cm_plot(cases,conf, y_act, y_pred,imgdir,plotflag = True):
     from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score
     from sklearn.metrics import PrecisionRecallDisplay
     cm = confusion_matrix(y_act, y_pred,labels = cases ) # 混淆矩阵
+    cm_row = cm / np.sum(cm, axis=1)
+    cm_col = cm / np.sum(cm, axis=0)
+
     accuracy = accuracy_score(y_act, y_pred);
     precision = precision_score(y_act, y_pred,average='weighted')
     recall = recall_score(y_act, y_pred,average='weighted');
@@ -200,17 +203,20 @@ def cm_plot(cases,conf, y_act, y_pred,imgdir,plotflag = True):
         plt.colorbar()  # 颜色标签
         for x in range(len(cm)):  # 数据标签
             for y in range(len(cm)):
-                plt.annotate(cm[x, y], xy=(y, x), verticalalignment='center', horizontalalignment='center')
+                row = round(cm_row[x, y], 2);
+                col = round(cm_col[x, y], 2)
+                info = f"Recall:{row}\nPrecison:{col}"
+                plt.annotate(info, xy=(y, x), verticalalignment='center', horizontalalignment='center')
         plt.ylabel('True label')  # 坐标轴标签
         # labels=["BG","False","True"]
         plt.yticks([0,1,2],cases)
         plt.xticks([0,1,2],cases)
         plt.xlabel('Predicted label')  # 坐标轴标签
         conf = [round(i,2) for i in conf]
-        plt.title("{}\nA:{} P:{} R:{} F1:{}\n".format(conf,round(accuracy,2),round(precision,2),round(recall,2),round(f1,2)))
+        plt.title("{}\nA:{} P:{} R:{} F1:{} Recall_33:{} Precion_33:{}\n".format(conf,round(accuracy,2),round(precision,2),round(recall,2),round(f1,2),round(row,2),round(col,2)))
 
         plt.savefig(imgdir+"/Confuse_Matrix.jpg",dpi=100)
-    return {"accuracy":accuracy,"precision":precision,"recall":recall,"f1":f1}
+    return {"accuracy":accuracy,"precision":precision,"recall":recall,"f1":f1,"row":cm_row[-1,-1],"col":cm_col[-1,-1]}
 
 # main program
 def main_create_xml(imgdir,model = config["model"]["phone"]):
@@ -228,7 +234,7 @@ def main_split2class(xmldir,rules):
     '''
     cls = rules['name']
     conf = rules['confidence']
-    cases =  rules["cases"]
+    cases = rules["cases"]
     checkdict = rules['priority']
     xmlfiles, _ = getFiles(xmldir, LabelType)
     savedir_bg = mkFolder(xmldir, cases[0])
@@ -271,7 +277,7 @@ def main_checkConfidence(xmldir,rules,DOE = None):
     checkdict = rules['priority']
     cases = rules["cases"]
     if DOE:
-        checkrange = [DOE[key] for key in DOE.keys()]
+        checkrange = [DOE["parameter"][key] for key in DOE["parameter"].keys()]
         dimensons = len(checkrange)
         confs = DOE_FullFactor(dimensons, checkrange)
         plotflag = False
@@ -282,7 +288,7 @@ def main_checkConfidence(xmldir,rules,DOE = None):
         resfile = "/resdata.csv"
     report = []
     total = len(confs)
-    maxf1 = 0
+    maxvalue = 0
     best = []
 
     for id,conf in enumerate(confs): # Loopover all parameters
@@ -294,14 +300,13 @@ def main_checkConfidence(xmldir,rules,DOE = None):
         temp1 = list(eva.values())
         temp.extend(temp1)
         report.append(temp)
-        if eva["f1"] > maxf1:
-            maxf1 = eva["f1"]
-
+        if DOE and eva[DOE["object"]] > maxvalue :
+            maxvalue = eva[DOE["object"]]
             best = conf
-            print(best, maxf1)
     temp = list(eva.keys())
     cls.extend(temp)
     resdata = pd.DataFrame(report,columns=cls)
+    resdata = resdata.dropna()
     resdata.to_csv(xmldir+resfile)
     if DOE:
         print(f"Best res:{best}")
@@ -310,6 +315,14 @@ def main_checkConfidence(xmldir,rules,DOE = None):
         cm_plot(cases, best, res['Actual'], res["Prediction"], xmldir, plotflag=True)
 
     res.to_csv(xmldir + "Actual_prediction.csv")
+    
+def main_val_xml(imgdir,model = config["model"]["phone"]):
+    '''
+        Create xml by infering
+    '''
+    mkFolder(imgdir, "validation")
+    val = Validation(model)
+    val.run(imgdir)
 
 if __name__ == "__main__":
     try:
@@ -319,7 +332,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\01_Project\01_Pangang\08_Video\dataset\Test\alarm/"
+        file_dir = r"D:\01_Project\01_Pangang\08_Video\dataset\Test\zks\zks\lgzks1/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)
@@ -353,11 +366,14 @@ if __name__ == "__main__":
             print(main_checkConfidence.__doc__)
             name = input("Object rules for check(alarm,mask):")
             main_checkConfidence(file_dir,rules=config["rules"][name],DOE=config["DOE"][name])
+        elif action == "validation":#validation
+            main_change_voc_to_yolo(file_dir,cls=config["model"]["person"]["classes"])
+            main_yolo_train_val_set(file_dir, task='test')
+            main_val_xml(file_dir, model=config["model"]["person"])
+        # main_create_xml(file_dir, model=config["model"]["person"])
+        # main_create_xml(file_dir, model=config["model"]["person"])
     except Exception as e:
         print(e)
         print(traceback.format_exc())
-    # main_split2class(file_dir, rules=config["rules"]["alarm"])
-    # main_checkConfidence(file_dir,rules=config["rules"]["alarm"],DOE=config["DOE"]["alarm"])
-    # main_checkConfidence(file_dir, rules=config["rules"]["alarm"])
-    # main_split2class(file_dir, rules=config["rules"]["alarm"])
+
     os.system("pause")

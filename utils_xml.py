@@ -74,7 +74,7 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
     for id,item in enumerate(res["object"]):
         # xmin,xmax,ymin,ymax = xywh2xyxy(*item)
         try:
-            xmin, ymin, xmax, ymax,confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]),float(item[4])
+            xmin, ymin, xmax, ymax,confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), float(item[4])
         except:
             xmin, ymin, xmax, ymax, confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), 0
         obj = create_node("object","")
@@ -193,11 +193,14 @@ def checkLabexml(xmlfiles):
         for obj in objects:
             name = obj.find('name').text
             if name not in cls.keys():
-                cls[name] = {"count":0,"files":[]}
+                cls[name] = {"count":0,"files":[],"confidence":[]}
             cls[name]["count"] += 1;cls[name]["files"].append(xmlfile)
+            bndbox = obj.find('bndbox')
+            confidence = round(float(bndbox.find('confidence').text),3)
+            cls[name]["confidence"].append(confidence)
     for name in cls.keys():
         print("Class name:%s\tNumber:%d" %(name,cls[name]["count"]))
-    return noobject
+    return noobject,cls
 
 def chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSavas=False):
     '''
@@ -257,7 +260,7 @@ def getObjectxml(xmlfile,classes):
     objects = root.findall("object")
     objectlist = []
 
-    if len(objects) !=0:
+    if len(objects) != 0:
         for obj in objects:
             name = obj.find('name').text
             if name in classes or classes == "all":

@@ -8,69 +8,77 @@
 			"data": "/data/wangyj/02_Study/Pytorch/Lite-HRNet-hrnet/configs/top_down/lite_hrnet/coco/litehrnet_30_coco_384x288.py",
 			"conf_thres": 0.4,
 			"iou_thres": 0.45,
+			"imgsize":640,
 			"device": "cuda:0"
 		},
 		"person": {
 			"detect:":"yolo",
-			"weights": "D:/05_Trick/modellib/coco80/best.pt",
-			"data": "D:/05_Trick/modellib/coco80/coco128.yaml",
+			"weights": "D:/05_Trick/modellib/person_smoke/best_0419_768.pt",
+			"classes": ["person","smoke","remote","cell phone"],
 			"save_dir":"./",
-			"conf_thres": 0.8,
+			"conf_thres": 0.4,
 			"iou_thres": 0.45,
+			"imgsize":768,
 			"device": "cpu"
 		},
 		"mask": {
 			"detect:":"yolo",
 			"weights": "D:/05_Trick/modellib/mask/best.pt",
-			"data": "D:/05_Trick/modellib/mask/mask.yaml",
+			"classes": ["mask","nomask"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
 			"iou_thres": 0.45,
+			"imgsize":640,
 			"device": "cpu"
 		},
 		"phone": {
 			"detect:":"yolo",
 			"weights": "D:/05_Trick/modellib/phone/best.pt",
-			"data": "D:/05_Trick/modellib/phone/steel.yaml",
+			"classes": ["phone"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
 			"iou_thres": 0.45,
+			"imgsize":640,
 			"device": "cpu"
 		},
 		"alarm": {
 			"detect:":"yolo",
 			"weights": "D:/05_Trick/modellib/alarm/best.pt",
-			"data": "D:/05_Trick/modellib/alarm/alarm.yaml",
+			"classes": ["alarm","noalarm"],
 			"save_dir":"./",
-			"conf_thres": 0.01,
+			"conf_thres": 0.4,
 			"iou_thres": 0.45,
+			"imgsize":640,
 			"device": "cpu"
 		},
 		"person_alarm": {
 			"detect:":"yolo",
 			"weights": "D:/05_Trick/modellib/person_alarm/best.pt",
-			"data": "D:/05_Trick/modellib/alarm/alarm.yaml",
+			"classes": ["person","alarm instrument"],
 			"save_dir":"./",
 			"conf_thres": 0.01,
 			"iou_thres": 0.45,
+			"imgsize":640,
 			"device": "cpu"
 		},
 		"smoke": {
 			"detect:":"yolo",
 			"weights": "D:/05_Trick/modellib/smoke/best.pt",
-			"data": "D:/05_Trick/modellib/smoke/smoke.yaml",
+			"classes": ["smoke"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
 			"iou_thres": 0.45,
+			"imgsize":640,
 			"device": "cpu"
 		},
 		"steel": {
 			"detect:":"yolo",
 			"weights": "D:/05_Trick/modellib/steel/best.pt",
-			"data": "D:/05_Trick/modellib/steel/steel.yaml",
+			"classes": ["1","2","3","4"],
 			"save_dir":"./",
 			"conf_thres": 0.6,
 			"iou_thres": 0.45,
+			"imgsize":640,
 			"device": "cpu"
 		}
 	},
@@ -78,20 +86,20 @@
 		"alarm": {
 			"name": [
 				"person",
+				"alarm instrument",
 				"alarm",
-				"noalarm",
-				"alarm instrument"
+				"noalarm"
 			],
 			"confidence": [
+				0.8,
+				0.77,
 				0.01,
-				0.77,
-				0.77,
-				0.2
+				0.55
 			],
 			"cases": [
 				"BG_Back",
-				"Alarm",
-				"noAlarm"
+				"noWarning",
+				"Warning"
 			],
 			"priority": {
 				"person": {
@@ -123,26 +131,29 @@
 	},
 	"DOE": {
 		"alarm": {
-			"person": [
-				0.8,
-				0.99,
-				4
-			],
-			"alarm instrument": [
-				0.01,
-				0.99,
-				10
-			],
-			"alarm": [
-				0.01,
-				0.99,
-				10
-			],
-			"noalarm": [
-				0.01,
-				0.99,
-				10
-			]
+			"parameter": {
+					"person": [
+						0.8,
+						0.99,
+						4
+					],
+					"alarm instrument": [
+						0.01,
+						0.99,
+						10
+					],
+					"alarm": [
+						0.01,
+						0.99,
+						10
+					],
+					"noalarm": [
+						0.01,
+						0.99,
+						10
+					]
+				},
+			"object": "row"
 		},
 		"mask": {
 			"mask": [

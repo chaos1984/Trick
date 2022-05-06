@@ -16,6 +16,8 @@ from shutil import copyfile,move
 from sklearn.model_selection import train_test_split
 import random
 import traceback
+import matplotlib.pyplot as plt
+import pandas as pd
 
 ImgType = ['*.jpg','*.jpeg','*.tif','*.png']
 VideoType = ['*.avi','*.mp4']
@@ -387,7 +389,7 @@ def paddingSquare(img):
     return img,int((pad_height - height)/2),int((pad_width - width)/2)
 
 
-def saveCropImg(imgdir,imgfile,clsname,scale=0.1,square = True):
+def saveCropImgcopy(imgdir,imgfile,clsname,scale=0.1,square = True):
     '''
     Description: Crop image accoding to the bounding box from xml, and save the cropped image
     Author: Yujin Wang
@@ -419,17 +421,18 @@ def saveCropImg(imgdir,imgfile,clsname,scale=0.1,square = True):
             h = ymax - ymin; w = xmax - xmin
             scale1 = int((max(w,h)*(scale+1)-max(w,h))/2)
             offset = int(abs((h - w) / 2))
+            confidence = object[5] if object[5]!= 0 else 0
             if square == True:
                 if h > w:
                     y1 = ymin - scale1 ;y2 = ymax + scale1 ;x1 = xmin - offset - scale1 ; x2 = xmax + offset + scale1
-                    object = [[scale1 + offset, scale1  , w + offset + scale1 , h + scale1 , 0, 0]]
+                    object = [[scale1 + offset, scale1  , w + offset + scale1 , h + scale1 , confidence,0 ]]
 
                 else:
                     y1 = ymin - offset - scale1 ;y2 = ymax + offset + scale1 ; x1 = xmin-scale1 ;x2 = xmax+scale1
-                    object = [[scale1 , scale1 +offset, w+scale1 , h+offset+scale1 , 0, 0]]
+                    object = [[scale1 , scale1 +offset, w+scale1 , h+offset+scale1 , confidence, 0]]
             else:
-                y1 = ymin-scale1 ; y2 = ymax+scale1 ; x1 = xmin-scale1 ; x2 = xmax+scale1
-                object = [[0,0,w,h, 0, 0]]
+                y1 = ymin-scale1 ; y2 = ymax+scale1 ; x1 = xmin-scale1 ; x2 = dxmax+scale1
+                object = [[0,0,w,h, confidence, 0]]
 
             ymin = max(0, y1);ymax = min(y2, height); xmin = max(0, x1);xmax = min(x2, width)
             crop_img = img[ymin:ymax, xmin:xmax]
@@ -441,7 +444,90 @@ def saveCropImg(imgdir,imgfile,clsname,scale=0.1,square = True):
 
             createObjxml(xmldic,saveimg,cls=[clsname])
             cv2.imwrite(saveimg,crop_img)
-            
+
+
+def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True):
+    '''
+    Description: Crop image accoding to the bounding box from xml, and save the cropped image
+    Author: Yujin Wang
+    Date: 2022-1-6
+    Args:
+        img[image]: image
+        object: dest object
+        saveimgfile: croped image is saved in dir and file name
+    Return:
+    Usage:
+    '''
+    def box_in_box(x1, y1, x2, y2, xmin, ymin, xmax, ymax):
+        """
+        判断box (x1, y1, x2, y2)是否在box (xmin, ymin, xmax, ymax) 之中
+        """
+        return (xmin <= x1 <= xmax) and (xmin <= x2 <= xmax) and (ymin <= y1 <= ymax) and (ymin <= y2 <= ymax)
+    savedir = mkFolder(imgdir, clsname + "_" + 'crop')
+    xmlfile = imgfile.replace(imgfile[-4:], ".xml")
+    objectlist, w, h = getObjectxml(imgdir + xmlfile,[clsname])
+    img = cv2.imread(imgdir + imgfile)
+
+    img, hoffset, woffset = paddingSquare(img)
+    height, width, _ = img.shape
+
+    id = 0
+    if len(objectlist) > 0 and objectlist[0] != []:
+        for objectbox in objectlist:
+            id += 1
+            xmin = int(objectbox[1]) + woffset;
+            ymin = int(objectbox[2]) + hoffset;
+            xmax = int(objectbox[3]) + woffset;
+            ymax = int(objectbox[4]) + hoffset
+            h = ymax - ymin;
+            w = xmax - xmin
+            scale1 = int((max(w, h) * (scale + 1) - max(w, h)) / 2)
+            offset = int(abs((h - w) / 2))
+            confidence = objectbox[5] if objectbox[5] != 0 else 0
+            if square == True:
+                if h > w:
+                    y1 = ymin - scale1;
+                    y2 = ymax + scale1;
+                    x1 = xmin - offset - scale1;
+                    x2 = xmax + offset + scale1
+                    object = [[scale1 + offset, scale1, w + offset + scale1, h + scale1, confidence, 0]]
+
+                else:
+                    y1 = ymin - offset - scale1;
+                    y2 = ymax + offset + scale1;
+                    x1 = xmin - scale1;
+                    x2 = xmax + scale1
+                    object = [[scale1, scale1 + offset, w + scale1, h + offset + scale1, confidence, 0]]
+            else:
+                y1 = ymin - scale1;
+                y2 = ymax + scale1;
+                x1 = xmin - scale1;
+                x2 = xmax + scale1
+                object = [[0, 0, w, h, confidence, 0]]
+
+            ymin = max(0, y1);
+            ymax = min(y2, height);
+            xmin = max(0, x1);
+            xmax = min(x2, width)
+            crop_img = img[ymin:ymax, xmin:xmax]
+            h, w, c = crop_img.shape
+
+            innerobjectlist, _, _ = getObjectxml(imgdir + xmlfile, "all")
+            classes =[clsname]
+            for innerbox in innerobjectlist:
+                if innerbox[0] != clsname and box_in_box(innerbox[1],innerbox[2],innerbox[3],innerbox[4],objectbox[1],objectbox[2],objectbox[3],objectbox[4]):
+                    if innerbox[0] not in classes:
+                        classes.append(innerbox[0])
+                    x1 = object[0][0] + innerbox[1]-objectbox[1]; y1 = object[0][1] + innerbox[2]- objectbox[2] ;
+                    object.append([x1, y1, x1 + innerbox[3] - innerbox[1],y1 + innerbox[4] - innerbox[2], innerbox[5],classes.index(innerbox[0])])
+
+            xmldic = {"size": {"w": str(w), "h": str(h), "c": str(c)},"object": object}
+            saveimg = os.path.join(savedir, imgfile[:-4] + '_' + clsname + '_' + str(id) + '.jpg')
+            # h,w,c = crop_img.shape
+
+            createObjxml(xmldic, saveimg, cls=classes)
+            cv2.imwrite(saveimg, crop_img)
+
 def plotRectBox(img,objectlist):
     '''
     Description: Plot bndbox and label in image accoding to the bounding box from xml, and save the cropped image
@@ -587,15 +673,18 @@ def main_remove_obj_from_xml(xmldir):
  
 
 
-def main_change_voc_to_yolo(xmldir):
+def main_change_voc_to_yolo(xmldir,cls=[]):
     '''
         Change VOC to Yolo
     '''
-    xmlfiles,_ = getFiles(xmldir,LabelType)
-    cls_name = input("Please input class you want(person,mask.Note: has the same sort as yaml):")
-    # format = input("Please input image file format:")
-    cls_name = cls_name.split(',')
-
+    xmlfiles, _ = getFiles(xmldir, LabelType)
+    if cls==[]:
+        cls_name = input("Please input class you want(person,mask.Note: has the same sort as yaml):")
+        cls_name = cls_name.split(',')
+    else:
+        cls_name = cls
+    if type(cls) != list:
+        print('Input is not correct')
     VOC2Yolo(xmlfiles,cls_name)
 
 def main_change_yolo_to_voc(imgdir):
@@ -620,10 +709,31 @@ def main_change_cls_name(xmldir):
 
 def main_check_label_xml(xmldir):
     '''
-        Check label xml
+        Check label xml and present histgram of confidence
     '''
     xmlfiles,_ = getFiles(xmldir, LabelType)
-    noobjectfiles = checkLabexml(xmlfiles)
+    noobjectfiles,cls = checkLabexml(xmlfiles)
+    savedir = mkFolder(xmldir, "checkres")
+
+
+    for name in cls.keys():
+        temp = np.array(cls[name]["confidence"])
+        nt,_,_ = plt.hist(temp, bins=51, rwidth=0.5, range=(0, 1), align='mid')
+        plt.plot([np.mean(temp),np.mean(temp)],[0,np.max(nt)],":",label="Mean")
+        plt.plot([np.median(temp), np.median(temp)], [0, np.max(nt)], "--",label="Median")
+        for i in [10,20,30,40,50,70]:
+            value = np.percentile(temp, i)
+            plt.plot([value, value], [0, np.max(nt)], "--", label=f"{i}%")
+            plt.text(value, np.max(nt),f'{round(value,2)}',fontsize=8, rotation=90)
+        plt.xticks()
+        plt.title(name)
+        plt.legend()
+        plt.grid()
+        plt.savefig(savedir / f'{name}_confidence.jpg')
+        np.savetxt(savedir / f'{name}_confidence_{len(cls[name]["confidence"])}.csv', np.array(cls[name]["confidence"]), delimiter=",")
+        # fout = open(savedir / f'{name}_confidence.csv','w')
+        # fout.write(str(cls[name]["confidence"]))
+        # fout.close()
     if len(noobjectfiles) != 0:
         savedir = mkFolder(xmldir,"noobject")
         for file in noobjectfiles:
@@ -644,29 +754,32 @@ def main_change_file_name(xmldir):
     savedir =mkFolder(xmldir,'rename_files')
     renFile(xmldir,savedir,format,label,id)
 
-
-
-def main_yolo_train_val_set(imgdir):
+def main_yolo_train_val_set(imgdir,task = 'test'):
     '''
         Split train and val dataset
     '''
-    img_serverdir = input("Train and validation img in serverdir(data/.../):")
-    _,imgfiles = getFiles(imgdir,ImgType)
-    imgfiles = [img_serverdir + i for i in imgfiles]
-    test_size = float(input("Input the ratio of val:"))
-    # print(imgfiles) 
-    if test_size != 0.0:
+    if task != 'test':
+        _, imgfiles = getFiles(imgdir, ImgType)
+        img_serverdir = input("Train and validation img in serverdir(data/.../):")
+        imgfiles = [img_serverdir + i for i in imgfiles]
+        samplerdir = mkFolder(imgdir, 'train_val')
+        test_size = float(input("Input the ratio of val:"))
+        if  test_size  == 0:
+            writeFile(samplerdir / 'test.txt', imgfiles)
+            return
         train_files, val_files = train_test_split(imgfiles, test_size=test_size, random_state=55)
-        samplerdir = mkFolder(imgdir,'train_val')
         writeFile(samplerdir / 'train.txt', train_files)
         writeFile(samplerdir / 'val.txt',val_files)
     else:
+        imgfiles, _ = getFiles(imgdir, ImgType)
         writeFile(imgdir + '/test.txt', imgfiles)
+        return
+
 
 
 def main_crop_object_img(imgdir):
     '''
-        Crop objet image
+        Crop objet image(include inner objects in box)
     '''
     clsname = input("Input class name:")
     scale = float(input("Input scale factor(max(h,w)):"))
@@ -827,6 +940,32 @@ def main_movobject(xmldir):
     savedir = mkFolder(xmldir,cls)
     movObjectxml(xmldir,xmlfiles,cls,savedir)
 
+def main_uremnusedxml(xmldir):
+    '''
+        Remove unused xml files
+    '''
+    xmlfiles,_ = getFiles(xmldir,LabelType)
+    for file in xmlfiles:
+        if len(findRelativeFiles(file)) == 1:
+            os.remove(file)
+
+# def main_getBestConfidenceThr():
+#     rightarray = np.loadtxt(r"D:\01_Project\01_Pangang\08_Video\dataset\Test\zks\zks\confidence_right\cell phone_crop_1024\checkres\cell phone_confidence_355.csv", delimiter=',')
+#     wrongarray = np.loadtxt(
+#         r"D:\01_Project\01_Pangang\08_Video\dataset\Test\zks\zks\confidence_right\cell phone_crop_1024\wrong\checkres\cell phone_confidence_12.csv",
+#         delimiter=',')
+#     data = []
+#     for i in np.linspace(0,1,100):
+#         c_right = np.sum(rightarray >= i);c_wrong = np.sum(wrongarray >= i)
+#         total = c_right + c_wrong
+#         if c_right + c_wrong != 0:
+#             precison = c_right / total
+#             recall = c_right / len(rightarray)
+#             data.append([i,precison,recall])
+#     data = pd.DataFrame(data,columns=["conf-thr","precison","recall"])
+
+
+
 if __name__ == "__main__":
     try:
         action = sys.argv[1]
@@ -836,7 +975,7 @@ if __name__ == "__main__":
     except:
         action = ""
         file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\yolov5\data\images/"
-        file_dir = r"D:\01_Project\01_Pangang\08_Video\test0331\person_down\jianwei\test/"
+        file_dir = r"D:\01_Project\01_Pangang\08_Video\dataset\Test\alarm\test/"
         # pass
     if action == "getFrame":
         print(main_extract_frame_from_video.__doc__)
@@ -855,14 +994,14 @@ if __name__ == "__main__":
         main_change_file_name(file_dir)
     elif action == 'splitYoloTrainVal':
         print(main_yolo_train_val_set.__doc__)
-        main_yolo_train_val_set(file_dir)
-    elif action == "cropObject":
+        main_yolo_train_val_set(file_dir,task='trainval')
+    elif action == "cropObject": #cropObject
         print(main_crop_object_img.__doc__)
         main_crop_object_img(file_dir)
     elif action == "plotBBox":
         print(main_plot_bbox.__doc__)
         main_plot_bbox(file_dir)
-    elif action == "checklabelxml":
+    elif action == "checklabelxml":#checklabelxml
         print(main_check_label_xml.__doc__)
         main_check_label_xml(file_dir)
     elif action == "squareimg":
@@ -881,10 +1020,19 @@ if __name__ == "__main__":
         print(main_change_yolo_to_voc.__doc__)
         main_change_yolo_to_voc(file_dir)
     elif action == "reduceVdieoFrame":
-        print(main_video2video.__doc__) 
+        print(main_video2video.__doc__)
         main_video2video(file_dir)
     elif action == "movObject":
-        print(main_movobject.__doc__) 
+        print(main_movobject.__doc__)
         main_movobject(file_dir)
+    elif action == "remUnusedXML":
+        print(main_remunusedxml.__doc__)
+        main_remunusedxml(file_dir)
+    # elif action == "":
+    #     print(main_getBestConfidenceThr.__doc__)
+    #     main_getBestConfidenceThr()
     # main_extract_frame_from_video(file_dir)
+    # main_check_label_xml(file_dir)
+
+
     os.system("pause")
