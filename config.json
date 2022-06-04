@@ -13,17 +13,17 @@
 		},
 		"person": {
 			"detect:":"yolo",
-			"weights": "D:/05_Trick/modellib/person_smoke/best_0419_768.pt",
+			"weights": "D:/05_Trick/modellib/person_smoke/best_0523_1024.pt",
 			"classes": ["person","smoke","remote","cell phone"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
 			"iou_thres": 0.45,
-			"imgsize":768,
+			"imgsize":1024,
 			"device": "cpu"
 		},
 		"mask": {
 			"detect:":"yolo",
-			"weights": "D:/05_Trick/modellib/mask/best.pt",
+			"weights": "D:/05_Trick/modellib/mask/best_0603.pt",
 			"classes": ["mask","nomask"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
@@ -43,8 +43,18 @@
 		},
 		"alarm": {
 			"detect:":"yolo",
-			"weights": "D:/05_Trick/modellib/alarm/best.pt",
+			"weights": "D:/05_Trick/modellib/alarm/alarm_best_05_23.pt",
 			"classes": ["alarm","noalarm"],
+			"save_dir":"./",
+			"conf_thres": 0.4,
+			"iou_thres": 0.45,
+			"imgsize":640,
+			"device": "cpu"
+		},
+		"alarm4cls": {
+			"detect:":"yolo",
+			"weights": "D:/05_Trick/modellib/alarm_4cls/best.pt",
+			"classes": ["alarm","noalarm","person","alarm instrument"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
 			"iou_thres": 0.45,
@@ -56,7 +66,7 @@
 			"weights": "D:/05_Trick/modellib/person_alarm/best.pt",
 			"classes": ["person","alarm instrument"],
 			"save_dir":"./",
-			"conf_thres": 0.01,
+			"conf_thres": 0.4,
 			"iou_thres": 0.45,
 			"imgsize":640,
 			"device": "cpu"
@@ -80,6 +90,26 @@
 			"iou_thres": 0.45,
 			"imgsize":640,
 			"device": "cpu"
+		},
+		"phone_3cls": {
+			"detect:":"Resnet",
+			"weights": "D:\\05_Trick\\modellib\\phone_3cls\\model_best.pth",
+			"classes": ["call","other","play"],
+			"save_dir":"./",
+			"conf_thres": 0.4,
+			"iou_thres": 0.45,
+			"imgsize":224,
+			"device": "cpu"
+		},
+		"phone_falldown": {
+			"detect:":"Resnet",
+			"weights": "D:\\05_Trick\\modellib\\phone_falldown\\model_best.pth",
+			"classes": ["0","1","2","3","4"],
+			"save_dir":"./",
+			"conf_thres": 0.4,
+			"iou_thres": 0.45,
+			"imgsize":224,
+			"device": "cpu"
 		}
 	},
 	"rules": {
@@ -92,9 +122,9 @@
 			],
 			"confidence": [
 				0.8,
-				0.77,
-				0.01,
-				0.55
+				0.4,
+				0.4,
+				0.7
 			],
 			"cases": [
 				"BG_Back",
@@ -117,7 +147,7 @@
 			],
 			"confidence": [
 				0.4,
-				0.6
+				0.7
 			],
 			"cases": [
 				"BG_Back",
@@ -138,17 +168,17 @@
 						4
 					],
 					"alarm instrument": [
-						0.01,
+						0.4,
 						0.99,
 						10
 					],
 					"alarm": [
-						0.01,
+						0.4,
 						0.99,
 						10
 					],
 					"noalarm": [
-						0.01,
+						0.4,
 						0.99,
 						10
 					]

@@ -1,11 +1,6 @@
-from math import remainder
-import os
-import cv2 
-import numpy as np
-import sys
-# from numpy.lib.function_base import angle
-import glob
-import random
+from utils_pre import *
+from utils_xml import *
+from utils_math import *
 
 
 
@@ -199,7 +194,7 @@ def subsBG(bg_img,fg_img):
     else:
         return bg_img,[]
 
-def rotimg(img,angle,scale=1):
+def rotimg(img,angle,scale=1,prob=1.0):
     '''
     Description: Rotate and scale image
     Author: Yujin Wang
@@ -214,10 +209,14 @@ def rotimg(img,angle,scale=1):
         ciga = cv2.imread(ciga)
         rotate_ciga = rotimg(ciga,left_angle,scale=ratio)
     '''
-    h,w,_ =img.shape
-    matRotate = cv2.getRotationMatrix2D((0.5*w,0.5*h), angle+180, scale)
+    rd = random.random()
+    if rd< prob:
+        h,w,_ =img.shape
+        matRotate = cv2.getRotationMatrix2D((0.5*w,0.5*h), (random.random()-0.5)*angle, 1.3)
     
-    return cv2.warpAffine(img, matRotate, (int(w),int(h))) 
+        return cv2.warpAffine(img, matRotate, (int(w),int(h)))
+    else:
+        return img
    
 def cv_show(name, img):
     '''
@@ -306,6 +305,54 @@ def pasteImg(bg_img,fg_img,pos,checkrange):
             return bg_img,[]
 
 
+def reflectimg(img,prob=1.0):
+    if random.random() < prob:
+        return cv2.flip(img,1)
+    else:
+        return img
+
+def rgb2gray(img,prob=1.0):
+    if random.random() < prob:
+        return cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
+    else:
+        return img
+
+def hsvadjust1(img,prob=1.0):
+    '''
+    Description:
+        Change img HSV with maxmin
+    Author: Yujin Wang
+    Date: 2022-02-24
+    Args:
+        img[]
+    Return:
+    Usage:
+    '''
+    # print(adjh,adjs,adjv)
+    if random.random() < prob:
+        hue, sat, val = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HSV))
+        dtype = img.dtype  # uint8
+        h_norm = (hue/np.max(hue)*180).astype(dtype)
+        s_norm = (sat/np.max(sat)*255).astype(dtype)
+        v_norm = (val/np.max(val)*255).astype(dtype)
+        img_hsv =  cv2.merge([h_norm,s_norm,v_norm])
+        return cv2.cvtColor(img_hsv,cv2.COLOR_HSV2BGR)
+
+def main_augmentImgs(imgdir,prob=1.0):
+    '''
+       Augmentation for Images
+    '''
+    imgfilespath,imgfiles= getFiles(imgdir,ImgType)
+    savedir = mkFolder(imgdir,"augmentation")
+    for id,img in enumerate(imgfiles):
+        im = cv2.imread(imgfilespath[id])
+        im = reflectimg(im,prob=1.0)
+        im = hsvadjust1(im,prob=1.0)
+        im = rotimg(im, 30, scale=1, prob=1.0)
+        im = rgb2gray(im,prob=0.7)
+        imgdir = savedir / f"{img[:-4]}_aug.jpg"
+
+        cv2.imwrite(imgdir.__str__(), im)
 
 if __name__ == "__main__":
     
@@ -317,65 +364,15 @@ if __name__ == "__main__":
     except:
         action = ""
         file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\yolov5\data\images/"
-        file_dir = r"D:\01_Project\02_Baosteel\01_Input\Dataset\V3\test/"
+        file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\resnet18_phone\test/"
         # pass
-    
-    # # imgfiledir =r"./img/"
-    # # imgfiles = glob.glob(imgfiledir + '*.png')
+    try:
+        if action == "augmentation":#augmentation
+            print(main_augmentImgs.__doc__)
+            main_augmentImgs(file_dir)
+    except Exception as e:
+        print(e)
+        print(traceback.format_exc())
 
-    # cigafiledir = r"./ciga/"
-    # cigafiles = glob.glob(cigafiledir + '*.png')
-    # ciga = random.sample(cigafiles, 1)[0]
+    os.system("pause")
 
-
-    # # save_path = imgfiledir+"ciga"+'/'
-
-    # res =   [[905.21044921875, 435.4527587890625, 0.7316806316375732], [801.7477416992188, 478.2089538574219, 0.7653260827064514], [904.3194580078125, 457.283935546875, 0.5500354170799255], [862.6246337890625, 477.6883544921875, 0.7263373732566833]]
-    # left_hand_x,left_hand_y,left_dis,left_angle = get_hand_point(elbow_x=res[0][0], elbow_y=res[0][1], wrist_x=res[2][0], wrist_y=res[2][1])
-    # right_hand_x,right_hand_y,right_dis,right_angle = get_hand_point(elbow_x=res[1][0], elbow_y=res[1][1], wrist_x=res[3][0], wrist_y=res[3][1])
-    # pos = [int(left_hand_x),int(left_hand_y)]
-    # pos = [int(right_hand_x),int(right_hand_y)]
-    # ratio = left_dis/27*0.1 
-    # img = cv2.imread("./smoke10.jpg")
-    # print (ciga)
-    # ciga = cv2.imread(ciga)
-    # # h,w,_ =ciga.shape
-    # # cv_show("ciga",ciga)
-    # # size = (int(w*ratio), int(h*ratio))  
-    # # ciga = cv2.resize(ciga, size, interpolation=cv2.INTER_AREA)  
-    # rotate_ciga = img_rotate(ciga,left_angle,scale=ratio)
-    # # img = img_rotate(img)
-    # # cv_show("ro",rotate_ciga)
-    # # h,w,_ =rotate_ciga.shape
-    # # cv_show("ciga",ciga)
-    
-    # # cv2.rectangle(img,(int(left_hand_x),int(left_hand_y)),(int(right_hand_x),int(right_hand_y)),(0,0,255),10)
-
-
-    # # rotate_ciga_trans = subsBG(rotate_ciga)
-    # img = paste_img(img,rotate_ciga,pos,1)
-    # # cv_show("cv",img)
-    # # saveimgfile = save_path+
-    # # cv2.imwrite(saveimgfile,img)
-    
-    # # print ("left_hand",left_hand_x,left_hand_y)
-    # # print ("right_hand",right_hand_x,right_hand_y)
-
-
-    # from utils_pre import getObjectxml
-    # xmlfile = 'xxx.xml';label='person'; saveimgfile='xxx.jpg'
-    # objectlist = getObjectxml(xmlfile,label)
-    # imgfile = xmlfile.replace(".xml",".tif")
-    # img = cv2.imread(imgfile)
-    # if len(objectlist) > 0:
-    #     # print(objectlist)
-    #     for index,object in enumerate(objectlist):
-    #         imgname = "_%i.png" %(index)
-    #         saveimgfile = xmlfile.replace(".xml",imgname)
-    #         # saveCropImg(img,object['bndbox'],save_path+saveimgfile,scale=3)
-    #         img = plotRectBox(img,object['bndbox'],label,saveimgfile)
-    #     # cv_show("cropimg",cropimg)
-    #     cv2.imwrite(saveimgfile,img)
-    # else:
-    #     # print(objectlist)
-    #     print ('Warnning: No %s found!' %(label))

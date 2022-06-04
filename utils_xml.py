@@ -93,7 +93,7 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
     tree.write(imgpath.replace(imgpath[-4:],".xml"))
 
 
-def movObjectxml(xmldir,xmlfiles,classes,savedir):
+def movObjectxml(xmlfiles,cls,savedir):
     '''
     Description: remove object from xmlfile in VOC
     Author: Yujin Wang
@@ -113,12 +113,13 @@ def movObjectxml(xmldir,xmlfiles,classes,savedir):
     
     for xmlfile in xmlfiles:
         # file = file.replace("\\", "/")
+
         tree = ET.parse(xmlfile)
         root = tree.getroot()
         objects = root.findall("object")
         for obj in objects:
             name = obj.find('name').text
-            if name in classes:
+            if name == cls:
                 for cpfile in findRelativeFiles(xmlfile[:-4]):
                     move(cpfile,savedir)
                 
@@ -193,11 +194,13 @@ def checkLabexml(xmlfiles):
         for obj in objects:
             name = obj.find('name').text
             if name not in cls.keys():
-                cls[name] = {"count":0,"files":[],"confidence":[]}
+                cls[name] = {"count":0,"files":[],"confidence":[],"area":[]}
             cls[name]["count"] += 1;cls[name]["files"].append(xmlfile)
             bndbox = obj.find('bndbox')
             confidence = round(float(bndbox.find('confidence').text),3)
+            xmin,ymin,xmax,ymax = int(bndbox.find('xmin').text),int(bndbox.find('ymin').text),int(bndbox.find('xmax').text),int(bndbox.find('ymax').text)
             cls[name]["confidence"].append(confidence)
+            cls[name]["area"].append((ymax-ymin)*(xmax-xmin))
     for name in cls.keys():
         print("Class name:%s\tNumber:%d" %(name,cls[name]["count"]))
     return noobject,cls
@@ -272,6 +275,8 @@ def getObjectxml(xmlfile,classes):
                         box.append(int(child.text))
                     else:
                         box.append(float(child.text))
+                if len(objectlist) < 6:
+                    box.append(0) #confidence
                 objectlist.append(box)
     else:
         pass

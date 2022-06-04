@@ -175,7 +175,7 @@ class Validation(Infer):
                 # callbacks.run('on_val_image_end', pred, predn, path, names, im[si])
 
             # Plot images
-            if batch_i < 3:
+            if batch_i < 20:
                 f = save_dir +f'/val_batch{batch_i}_labels.jpg'  # labels
                 Thread(target=plot_images, args=(im, targets, paths, f, names), daemon=True).start()
                 f = save_dir + f'/val_batch{batch_i}_pred.jpg'  # predictions

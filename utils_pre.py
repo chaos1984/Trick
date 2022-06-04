@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # coding:utf-8
+from cProfile import label
 import os
 from stat import filemode
 import sys
@@ -20,7 +21,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 ImgType = ['*.jpg','*.jpeg','*.tif','*.png']
-VideoType = ['*.avi','*.mp4']
+VideoType = ['*.avi','*.mp4','hav']
 LabelType = ['*.xml']
 
 def window_xml(xmlpath,bboxes,window,cls=["person"]):
@@ -203,7 +204,7 @@ def getFrame(dir,flielist,intertime=100,timeToStart = 1):
             if intertime == 0:
                 filename = file[:-4] + "_" + str(frametime).replace('.','p') + ".jpg"
                 img_path = os.path.join(savedir ,filename)
-                print (img_path)
+                # print (img_path)
                 cv2.imwrite(img_path,frame)
             else:    
                 if frame_num % (intertime*rate) == 0:
@@ -462,7 +463,8 @@ def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True):
         """
         判断box (x1, y1, x2, y2)是否在box (xmin, ymin, xmax, ymax) 之中
         """
-        return (xmin <= x1 <= xmax) and (xmin <= x2 <= xmax) and (ymin <= y1 <= ymax) and (ymin <= y2 <= ymax)
+        xc = (x1+x2)/2;yc = (y1+y2)/2
+        return (xmin <= xc <= xmax) and (ymin <= yc <= ymax),(xmin <= x1 <= xmax) and (xmin <= x2 <= xmax) and (ymin <= y1 <= ymax) and (ymin <= y2 <= ymax)
     savedir = mkFolder(imgdir, clsname + "_" + 'crop')
     xmlfile = imgfile.replace(imgfile[-4:], ".xml")
     objectlist, w, h = getObjectxml(imgdir + xmlfile,[clsname])
@@ -512,14 +514,16 @@ def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True):
             crop_img = img[ymin:ymax, xmin:xmax]
             h, w, c = crop_img.shape
 
+            classes = [clsname]
             innerobjectlist, _, _ = getObjectxml(imgdir + xmlfile, "all")
-            classes =[clsname]
             for innerbox in innerobjectlist:
-                if innerbox[0] != clsname and box_in_box(innerbox[1],innerbox[2],innerbox[3],innerbox[4],objectbox[1],objectbox[2],objectbox[3],objectbox[4]):
+                confidence = innerbox[5] if innerbox[5] != 0 else 0
+                centerinflag,_ = box_in_box(innerbox[1], innerbox[2], innerbox[3], innerbox[4], objectbox[1], objectbox[2], objectbox[3],objectbox[4])
+                if innerbox[0] != clsname and centerinflag:
                     if innerbox[0] not in classes:
                         classes.append(innerbox[0])
                     x1 = object[0][0] + innerbox[1]-objectbox[1]; y1 = object[0][1] + innerbox[2]- objectbox[2] ;
-                    object.append([x1, y1, x1 + innerbox[3] - innerbox[1],y1 + innerbox[4] - innerbox[2], innerbox[5],classes.index(innerbox[0])])
+                    object.append([x1, y1, x1 + innerbox[3] - innerbox[1],y1 + innerbox[4] - innerbox[2], confidence ,classes.index(innerbox[0])])
 
             xmldic = {"size": {"w": str(w), "h": str(h), "c": str(c)},"object": object}
             saveimg = os.path.join(savedir, imgfile[:-4] + '_' + clsname + '_' + str(id) + '.jpg')
@@ -706,6 +710,22 @@ def main_change_cls_name(xmldir):
     chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSavas=False)
 
 
+def plothist(data,title,imgfile,bins = [10, 20, 30, 40, 50, 70],datarange=(0,1),show= False):
+    nt, _, _ = plt.hist(data, bins=51, rwidth=0.5, range=datarange, align='mid')
+    plt.plot([np.mean(data), np.mean(data)], [0, np.max(nt)], ":", label="Mean")
+    plt.plot([np.median(data), np.median(data)], [0, np.max(nt)], "--", label="Median")
+    for i in bins:
+        value = np.percentile(data, i)
+        plt.plot([value, value], [0, np.max(nt)], "--", label=f"{i}%")
+        plt.text(value, np.max(nt), f'{round(value, 2)}', fontsize=8, rotation=90)
+    plt.xticks()
+    plt.title(title)
+    plt.legend()
+    plt.grid()
+    plt.savefig(imgfile)
+    if show:
+        plt.show()
+    plt.close()
 
 def main_check_label_xml(xmldir):
     '''
@@ -715,25 +735,12 @@ def main_check_label_xml(xmldir):
     noobjectfiles,cls = checkLabexml(xmlfiles)
     savedir = mkFolder(xmldir, "checkres")
 
-
     for name in cls.keys():
         temp = np.array(cls[name]["confidence"])
-        nt,_,_ = plt.hist(temp, bins=51, rwidth=0.5, range=(0, 1), align='mid')
-        plt.plot([np.mean(temp),np.mean(temp)],[0,np.max(nt)],":",label="Mean")
-        plt.plot([np.median(temp), np.median(temp)], [0, np.max(nt)], "--",label="Median")
-        for i in [10,20,30,40,50,70]:
-            value = np.percentile(temp, i)
-            plt.plot([value, value], [0, np.max(nt)], "--", label=f"{i}%")
-            plt.text(value, np.max(nt),f'{round(value,2)}',fontsize=8, rotation=90)
-        plt.xticks()
-        plt.title(name)
-        plt.legend()
-        plt.grid()
-        plt.savefig(savedir / f'{name}_confidence.jpg')
+        plothist(temp,name,savedir / f'{name}_confidence.jpg')
         np.savetxt(savedir / f'{name}_confidence_{len(cls[name]["confidence"])}.csv', np.array(cls[name]["confidence"]), delimiter=",")
-        # fout = open(savedir / f'{name}_confidence.csv','w')
-        # fout.write(str(cls[name]["confidence"]))
-        # fout.close()
+
+
     if len(noobjectfiles) != 0:
         savedir = mkFolder(xmldir,"noobject")
         for file in noobjectfiles:
@@ -758,16 +765,36 @@ def main_yolo_train_val_set(imgdir,task = 'test'):
     '''
         Split train and val dataset
     '''
+    mvfolder = input("Do you want to move figeures to train an val folder?(Y/N)")
+    if mvfolder == "Y":
+        trainFolder = mkFolder(imgdir,"train")
+        valFolder = mkFolder(imgdir,"validation")
+        
     if task != 'test':
         _, imgfiles = getFiles(imgdir, ImgType)
         img_serverdir = input("Train and validation img in serverdir(data/.../):")
-        imgfiles = [img_serverdir + i for i in imgfiles]
+        # imgfiles_serve = [img_serverdir + i for i in imgfiles]
         samplerdir = mkFolder(imgdir, 'train_val')
         test_size = float(input("Input the ratio of val:"))
-        if  test_size  == 0:
+        
+        
+        train_files, val_files = train_test_split(imgfiles, test_size=test_size, random_state=55)
+        if mvfolder == "Y":
+            for imgfile in train_files:
+                for file in findRelativeFiles(os.path.join(imgdir,imgfile)):
+                    move(file, trainFolder)
+            for imgfile in val_files:
+                for file in findRelativeFiles(os.path.join(imgdir,imgfile)):
+                    move(file, valFolder)
+        
+        
+        if  test_size  == "0":
             writeFile(samplerdir / 'test.txt', imgfiles)
             return
-        train_files, val_files = train_test_split(imgfiles, test_size=test_size, random_state=55)
+        
+
+        train_files =   [img_serverdir + i for i in train_files]
+        val_files =   [img_serverdir + i for i in val_files]
         writeFile(samplerdir / 'train.txt', train_files)
         writeFile(samplerdir / 'val.txt',val_files)
     else:
@@ -775,6 +802,27 @@ def main_yolo_train_val_set(imgdir,task = 'test'):
         writeFile(imgdir + '/test.txt', imgfiles)
         return
 
+def main_imagesize_filter(imgdir):
+    filelist,_ = getFiles(imgdir,ImgType)
+    imgsizelist = []
+    remdir = mkFolder(imgdir,"rem")
+    resdir = mkFolder(imgdir,"res")
+    total = len(filelist)
+    for id,file in enumerate(filelist):
+        print(f'{id+1}/{total}:{file}')
+        img = cv2.imread(file)
+        w,h,_= img.shape
+        imgsizelist.append([file,w,h,w*h])
+
+    imgsizelist = pd.DataFrame(imgsizelist,columns=["file","W","H","A"])
+    imgsizelist.to_csv(resdir / "imgsize.csv")
+    plothist(imgsizelist["A"], "Img_Area", resdir / "A_histgram.jpg",datarange=(min(imgsizelist["A"]),max(imgsizelist["A"])),show=True)
+    lowerthr = int(input("Image lower threshold(thrXthr):"))
+    upperthr = int(input("Image upper threshold(thrXthr):"))
+    remimg = imgsizelist[imgsizelist["A"]<upperthr][imgsizelist["A"]>lowerthr]
+    for img in remimg["file"]:
+        for file in findRelativeFiles(img):
+            move(file,remdir)
 
 
 def main_crop_object_img(imgdir):
@@ -937,17 +985,24 @@ def main_movobject(xmldir):
     '''
     xmlfiles,_ = getFiles(xmldir,LabelType)
     cls = input("Class name(only one label,e.g. person):")
-    savedir = mkFolder(xmldir,cls)
-    movObjectxml(xmldir,xmlfiles,cls,savedir)
+    cls = cls.split(',')
+    for i in cls:
+        savedir = mkFolder(xmldir,i)
+        movObjectxml(xmlfiles,i,savedir)
 
-def main_uremnusedxml(xmldir):
+def main_remunusedfile(xmldir):
     '''
-        Remove unused xml files
+        Remove unused files
     '''
-    xmlfiles,_ = getFiles(xmldir,LabelType)
-    for file in xmlfiles:
+    filetype = input("Image or label will be removed:")
+    if filetype == "lab":
+        files,_ = getFiles(xmldir,LabelType)
+    elif filetype == "img":  
+        files,_ = getFiles(xmldir,ImgType)
+    unuseddir = mkFolder(xmldir,'unused')
+    for file in files:
         if len(findRelativeFiles(file)) == 1:
-            os.remove(file)
+            move(file,unuseddir)
 
 # def main_getBestConfidenceThr():
 #     rightarray = np.loadtxt(r"D:\01_Project\01_Pangang\08_Video\dataset\Test\zks\zks\confidence_right\cell phone_crop_1024\checkres\cell phone_confidence_355.csv", delimiter=',')
@@ -964,6 +1019,13 @@ def main_uremnusedxml(xmldir):
 #             data.append([i,precison,recall])
 #     data = pd.DataFrame(data,columns=["conf-thr","precison","recall"])
 
+def main_imgchangetojpg(imgdir):
+    " Change images' format to jpg "
+    imgsdir,_ = getFiles(imgdir,ImgType)
+    for img in imgsdir:
+         im = cv2.imread(img) 
+         print(img.split('.')[0]+'.jpg')
+         cv2.imwrite(img.split('.')[0]+'.jpg',im)   
 
 
 if __name__ == "__main__":
@@ -975,64 +1037,70 @@ if __name__ == "__main__":
     except:
         action = ""
         file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\yolov5\data\images/"
-        file_dir = r"D:\01_Project\01_Pangang\08_Video\dataset\Test\alarm\test/"
+        file_dir = r"C:\Users\Lenovo\Desktop\11111/"
         # pass
-    if action == "getFrame":
-        print(main_extract_frame_from_video.__doc__)
-        main_extract_frame_from_video(file_dir)
-    elif action == "remObj":
-        print(main_remove_obj_from_xml.__doc__)
-        main_remove_obj_from_xml(file_dir)
-    elif action == "voc2yolo":
-        print(main_change_voc_to_yolo.__doc__)
-        main_change_voc_to_yolo(file_dir)
-    elif action == "chgObjectxml":
-        print(main_change_cls_name.__doc__)
-        main_change_cls_name(file_dir)
-    elif action == "changefilename":
-        print(main_change_file_name.__doc__)
-        main_change_file_name(file_dir)
-    elif action == 'splitYoloTrainVal':
-        print(main_yolo_train_val_set.__doc__)
-        main_yolo_train_val_set(file_dir,task='trainval')
-    elif action == "cropObject": #cropObject
-        print(main_crop_object_img.__doc__)
-        main_crop_object_img(file_dir)
-    elif action == "plotBBox":
-        print(main_plot_bbox.__doc__)
-        main_plot_bbox(file_dir)
-    elif action == "checklabelxml":#checklabelxml
-        print(main_check_label_xml.__doc__)
-        main_check_label_xml(file_dir)
-    elif action == "squareimg":
-        print(main_create_square_image_samples.__doc__)
-        main_create_square_image_samples(file_dir)
-    elif action == "plotinferres":
-        print(main_plot_infer_res.__doc__)
-        main_plot_infer_res(file_dir)
-    elif action == "changeHSV":
-        print(main_change_hsv.__doc__)
-        main_change_hsv(file_dir)
-    elif action == "clipsquareimage":
-        print(main_change_hsv.__doc__)
-        main_clip_square_image(file_dir)
-    elif action == "changeYolo2Voc":
-        print(main_change_yolo_to_voc.__doc__)
-        main_change_yolo_to_voc(file_dir)
-    elif action == "reduceVdieoFrame":
-        print(main_video2video.__doc__)
-        main_video2video(file_dir)
-    elif action == "movObject":
-        print(main_movobject.__doc__)
-        main_movobject(file_dir)
-    elif action == "remUnusedXML":
-        print(main_remunusedxml.__doc__)
-        main_remunusedxml(file_dir)
-    # elif action == "":
-    #     print(main_getBestConfidenceThr.__doc__)
-    #     main_getBestConfidenceThr()
-    # main_extract_frame_from_video(file_dir)
-    # main_check_label_xml(file_dir)
 
+    try:
+        if action == "getFrame":
+            print(main_extract_frame_from_video.__doc__)
+            main_extract_frame_from_video(file_dir)
+        elif action == "remObj":
+            print(main_remove_obj_from_xml.__doc__)
+            main_remove_obj_from_xml(file_dir)
+        elif action == "voc2yolo":
+            print(main_change_voc_to_yolo.__doc__)
+            main_change_voc_to_yolo(file_dir)
+        elif action == "chgObjectxml":
+            print(main_change_cls_name.__doc__)
+            main_change_cls_name(file_dir)
+        elif action == "changefilename":
+            print(main_change_file_name.__doc__)
+            main_change_file_name(file_dir)
+        elif action == 'splitYoloTrainVal':#splitYoloTrainVal
+            print(main_yolo_train_val_set.__doc__)
+            main_yolo_train_val_set(file_dir,task='trainval')
+        elif action == "cropObject": #cropObject
+            print(main_crop_object_img.__doc__)
+            main_crop_object_img(file_dir)
+        elif action == "plotBBox":
+            print(main_plot_bbox.__doc__)
+            main_plot_bbox(file_dir)
+        elif action == "checklabelxml":#checklabelxml
+            print(main_check_label_xml.__doc__)
+            main_check_label_xml(file_dir)
+        elif action == "squareimg":
+            print(main_create_square_image_samples.__doc__)
+            main_create_square_image_samples(file_dir)
+        elif action == "plotinferres":
+            print(main_plot_infer_res.__doc__)
+            main_plot_infer_res(file_dir)
+        elif action == "changeHSV":
+            print(main_change_hsv.__doc__)
+            main_change_hsv(file_dir)
+        elif action == "clipsquareimage":
+            print(main_change_hsv.__doc__)
+            main_clip_square_image(file_dir)
+        elif action == "changeYolo2Voc":
+            print(main_change_yolo_to_voc.__doc__)
+            main_change_yolo_to_voc(file_dir)
+        elif action == "reduceVdieoFrame":
+            print(main_video2video.__doc__)
+            main_video2video(file_dir)
+        elif action == "movObject":#movObject
+            print(main_movobject.__doc__)
+            main_movobject(file_dir)
+        elif action == "remUnusedXML":
+            print(main_remunusedfile.__doc__)
+            main_remunusedfile(file_dir)
+        elif action == "imagefiter":
+            print(main_imagesize_filter.__doc__)
+            main_imagesize_filter(file_dir)
+        elif action == "imgchangetojpg":
+            print(main_imgchangetojpg.__doc__)
+            main_imgchangetojpg(file_dir)
+        
+    except Exception as e:
+        print(e)
+        print(traceback.format_exc())
 
     os.system("pause")

@@ -24,6 +24,7 @@ with open(configpath, 'r') as c:
     config = json.load(c)
 sys.path.append(config["yolov5"])
 from Detectbase.PersonInfer import PersonInfer,Validation
+from Detectbase.Resnet_multiclass import ResnetDetector
 
 
 def xmlfilefromobjdetect(infer,imglist,imgdir):
@@ -302,6 +303,7 @@ def main_checkConfidence(xmldir,rules,DOE = None):
         report.append(temp)
         if DOE and eva[DOE["object"]] > maxvalue :
             maxvalue = eva[DOE["object"]]
+            print(maxvalue)
             best = conf
     temp = list(eva.keys())
     cls.extend(temp)
@@ -324,6 +326,26 @@ def main_val_xml(imgdir,model = config["model"]["phone"]):
     val = Validation(model)
     val.run(imgdir)
 
+
+def moveimgfile(infer,imgfiles,imgdir,classes):
+    savedirs = []
+    for cls in classes:
+        savedirs.append(mkFolder(imgdir, cls))
+
+    for im in imgfiles:
+        res = infer.predict(im)
+        move(im,savedirs[res])
+
+
+def main_phoneclassfy(imgdir,model = config["model"]["phone_3cls"]):
+    '''
+    Resnet for classifying images
+    '''
+    infer = ResnetDetector(model)
+    imgfiles,_ = getFiles(imgdir,ImgType)
+    moveimgfile(infer,imgfiles,imgdir,model['classes'])
+
+
 if __name__ == "__main__":
     try:
         action = sys.argv[1]
@@ -332,7 +354,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\01_Project\01_Pangang\08_Video\dataset\Test\zks\zks\lgzks1/"
+        file_dir = r"C:\Users\Lenovo\Desktop\phone_class\test\frame\cell phone_crop/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)
@@ -347,6 +369,9 @@ if __name__ == "__main__":
         elif action == "steelxml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["steel"])
+        elif action == "alarm4clsxml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["alarm4cls"])
         elif action == "phonexml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["phone"])
@@ -367,9 +392,13 @@ if __name__ == "__main__":
             name = input("Object rules for check(alarm,mask):")
             main_checkConfidence(file_dir,rules=config["rules"][name],DOE=config["DOE"][name])
         elif action == "validation":#validation
-            main_change_voc_to_yolo(file_dir,cls=config["model"]["person"]["classes"])
+            name = input("Validation for yolov5(alarm,mask):")
+            main_change_voc_to_yolo(file_dir,cls=config["model"][name]["classes"])
             main_yolo_train_val_set(file_dir, task='test')
-            main_val_xml(file_dir, model=config["model"]["person"])
+            main_val_xml(file_dir, model=config["model"][name])
+        elif action == "classfication":#classfication
+            print(main_phoneclassfy.__doc__)
+            main_phoneclassfy(file_dir, model=config["model"]["phone_falldown"])
         # main_create_xml(file_dir, model=config["model"]["person"])
         # main_create_xml(file_dir, model=config["model"]["person"])
     except Exception as e:
