@@ -15,14 +15,16 @@ import traceback
 
 
 
-pyscriptpath = r'D:\05_Trick\Trick'
+
 ImgType = ['*.jpg','*.jpeg','*.tif','*.png']
 VideoType = ['*.avi','*.mp4']
 
+pyscriptpath = r'D:\05_Trick\Trick'
 configpath = os.path.join(pyscriptpath,"config.json")
 with open(configpath, 'r') as c:
     config = json.load(c)
 sys.path.append(config["yolov5"])
+
 from Detectbase.PersonInfer import PersonInfer,Validation
 from Detectbase.Resnet_multiclass import ResnetDetector
 
@@ -322,9 +324,10 @@ def main_val_xml(imgdir,model = config["model"]["phone"]):
     '''
         Create xml by infering
     '''
-    mkFolder(imgdir, "validation")
+    ptname = model['weights'].split('/')[-1] + "_" + str(model["imgsize"])
+    save_dir = mkFolder(imgdir, "validation_"+ptname)
     val = Validation(model)
-    val.run(imgdir)
+    val.run(imgdir,str(save_dir))
 
 
 def moveimgfile(infer,imgfiles,imgdir,classes):
@@ -337,7 +340,7 @@ def moveimgfile(infer,imgfiles,imgdir,classes):
         move(im,savedirs[res])
 
 
-def main_phoneclassfy(imgdir,model = config["model"]["phone_3cls"]):
+def main_classfy(imgdir,model = config["model"]["phone_3cls"]):
     '''
     Resnet for classifying images
     '''
@@ -366,6 +369,9 @@ if __name__ == "__main__":
         elif action == "maskxml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["mask"])
+        elif action == "mask_yl_xml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["mask_yl"])
         elif action == "steelxml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["steel"])
@@ -378,7 +384,19 @@ if __name__ == "__main__":
         elif action == "smokexml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["smoke"])
+        elif action == "baosteel_surfacedefect_20cls":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["baosteel_surfacedefect_20cls"])
+        elif action == "helmetxml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["helmet"])
+        elif action == "safetybeltxml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["safetybelt"])
         # main_create_xml(file_dir, model=config["model"]["person_alarm"])
+        elif action == "mask_9clstxml":
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir,model = config["model"]["mask_9cls"])
         elif action == "checkconfidence":
             print(main_checkConfidence.__doc__)
             name = input("Object rules for check(alarm,mask):")
@@ -396,9 +414,14 @@ if __name__ == "__main__":
             main_change_voc_to_yolo(file_dir,cls=config["model"][name]["classes"])
             main_yolo_train_val_set(file_dir, task='test')
             main_val_xml(file_dir, model=config["model"][name])
-        elif action == "classfication":#classfication
-            print(main_phoneclassfy.__doc__)
-            main_phoneclassfy(file_dir, model=config["model"]["phone_falldown"])
+        elif action == "phone_falldown_5cls":#classfication
+            print(main_classfy.__doc__)
+            print("phone_falldown_5cls")
+            main_classfy(file_dir, model=config["model"]["phone_falldown_5cls"])
+        elif action == "falldown_2cls":#classfication
+            print(main_classfy.__doc__)
+            print("falldown_2cls")
+        # main_classfy(file_dir, model=config["model"]["falldown_2cls"])
         # main_create_xml(file_dir, model=config["model"]["person"])
         # main_create_xml(file_dir, model=config["model"]["person"])
     except Exception as e:

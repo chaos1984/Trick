@@ -78,7 +78,10 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
         except:
             xmin, ymin, xmax, ymax, confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), 0
         obj = create_node("object","")
-        obj.append(create_node("name",cls[int(item[-1])]))
+        if cls != []:
+            obj.append(create_node("name",cls[int(item[-1])]))
+        else:
+            obj.append(create_node("name", item[-1]))
         obj.append(create_node("pose",'Unspecified'))
         obj.append(create_node("truncated",'0'))
         obj.append(create_node("difficult",'0'))
@@ -93,7 +96,7 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
     tree.write(imgpath.replace(imgpath[-4:],".xml"))
 
 
-def movObjectxml(xmlfiles,cls,savedir):
+def movObjectxml(xmlfiles,cls,savedir,numclass = 99):
     '''
     Description: remove object from xmlfile in VOC
     Author: Yujin Wang
@@ -117,11 +120,14 @@ def movObjectxml(xmlfiles,cls,savedir):
         tree = ET.parse(xmlfile)
         root = tree.getroot()
         objects = root.findall("object")
-        for obj in objects:
-            name = obj.find('name').text
-            if name == cls:
-                for cpfile in findRelativeFiles(xmlfile[:-4]):
-                    move(cpfile,savedir)
+        if  len(objects) <= numclass:
+            for obj in objects:
+                name = obj.find('name').text
+                if name == cls:
+                    for cpfile in findRelativeFiles(xmlfile[:-4]):
+                        move(cpfile,savedir)
+        else:
+            continue
                 
 
 def remObjectxml(xmldir,xmlfiles,classes,isSavas=True):
@@ -197,10 +203,13 @@ def checkLabexml(xmlfiles):
                 cls[name] = {"count":0,"files":[],"confidence":[],"area":[]}
             cls[name]["count"] += 1;cls[name]["files"].append(xmlfile)
             bndbox = obj.find('bndbox')
-            confidence = round(float(bndbox.find('confidence').text),3)
-            xmin,ymin,xmax,ymax = int(bndbox.find('xmin').text),int(bndbox.find('ymin').text),int(bndbox.find('xmax').text),int(bndbox.find('ymax').text)
-            cls[name]["confidence"].append(confidence)
-            cls[name]["area"].append((ymax-ymin)*(xmax-xmin))
+            try:
+                confidence = round(float(bndbox.find('confidence').text),3)
+                xmin,ymin,xmax,ymax = int(bndbox.find('xmin').text),int(bndbox.find('ymin').text),int(bndbox.find('xmax').text),int(bndbox.find('ymax').text)
+                cls[name]["confidence"].append(confidence)
+                cls[name]["area"].append((ymax-ymin)*(xmax-xmin))
+            except:
+                print(f"Error xmlfile:{xmlfile}")
     for name in cls.keys():
         print("Class name:%s\tNumber:%d" %(name,cls[name]["count"]))
     return noobject,cls
@@ -241,6 +250,22 @@ def chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSavas=False):
             xmlfile = os.path.join(savedir,fn)
         print(xmlfile)
         tree.write(xmlfile)
+
+def flipObjextxml(xmlfile,augfiledir,fliptype="v") : #0-hflip;1-vflip;-1-hvflip
+    objectlist,w,h = getObjectxml(xmlfile,classes='all')
+    xc = int(w/2); yc = int(h/2)
+    new_objectlist = []
+    for object in objectlist:
+        if fliptype == "v" :
+            new_object = [object[1],h-object[2],object[3],h-object[4],1.0,object[0]]
+        elif fliptype == "h" :
+            new_object = [w-object[1],object[2],w-object[3],object[4],1.0,object[0]]
+        elif fliptype == "vh" :
+            new_object = [w-object[1],h-object[2],w-object[3],h-object[4],1.0,object[0]]
+        new_objectlist.append(new_object)
+    xmldic = {"size": {"w": str(w), "h": str(h), "c": '3'}, "object": new_objectlist}
+    # createObjxml(res,imgpath,cls=[],xmlfile=None)(new_objectlist)
+    createObjxml(xmldic, augfiledir, cls=[], xmlfile=None)
 
 def getObjectxml(xmlfile,classes):
     '''

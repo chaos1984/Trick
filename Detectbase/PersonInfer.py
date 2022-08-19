@@ -103,13 +103,12 @@ class Validation(Infer):
 
 
     @torch.no_grad()
-    def run(self, rundir):
+    def run(self, rundir,save_dir):
         from utils.metrics import ConfusionMatrix, ap_per_class
         from utils.plots import output_to_target, plot_images, plot_val_study
         # from utils.callbacks import Callbacks
         # callbacks = Callbacks(),
         single_cls = False
-        save_dir = os.path.join(rundir,'validation')
         # Directories
 
 
@@ -175,7 +174,7 @@ class Validation(Infer):
                 # callbacks.run('on_val_image_end', pred, predn, path, names, im[si])
 
             # Plot images
-            if batch_i < 20:
+            if batch_i < 3:
                 f = save_dir +f'/val_batch{batch_i}_labels.jpg'  # labels
                 Thread(target=plot_images, args=(im, targets, paths, f, names), daemon=True).start()
                 f = save_dir + f'/val_batch{batch_i}_pred.jpg'  # predictions

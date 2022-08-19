@@ -4,6 +4,7 @@ from cProfile import label
 import os
 from stat import filemode
 import sys
+import json
 import time
 import glob
 from pathlib import Path
@@ -20,9 +21,18 @@ import traceback
 import matplotlib.pyplot as plt
 import pandas as pd
 
-ImgType = ['*.jpg','*.jpeg','*.tif','*.png']
+ImgType = ['*.jpg','*.jpeg','*.tif','*.png','*.bmp']
 VideoType = ['*.avi','*.mp4','hav']
 LabelType = ['*.xml']
+
+pyscriptpath = r'D:\05_Trick\Trick'
+configpath = os.path.join(pyscriptpath,"config.json")
+with open(configpath, 'r') as c:
+    config = json.load(c)
+sys.path.append(config["yolov5"])
+
+from utils.plots import Annotator, colors, save_one_box
+
 
 def window_xml(xmlpath,bboxes,window,cls=["person"]):
     h = window[2]-window[0];w = window[3]-window[1];c=3
@@ -202,7 +212,7 @@ def getFrame(dir,flielist,intertime=100,timeToStart = 1):
                 break
             frametime = round((frame_num +frameToStart-1)/ rate,2)
             if intertime == 0:
-                filename = file[:-4] + "_" + str(frametime).replace('.','p') + ".jpg"
+                filename = str(frame_num) + "_" +file[:-4] + "_" + str(frametime).replace('.','p') + ".jpg"
                 img_path = os.path.join(savedir ,filename)
                 # print (img_path)
                 cv2.imwrite(img_path,frame)
@@ -532,7 +542,10 @@ def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True):
             createObjxml(xmldic, saveimg, cls=classes)
             cv2.imwrite(saveimg, crop_img)
 
-def plotRectBox(img,objectlist):
+
+
+
+def plotRectBox(img,objectlist,names):
     '''
     Description: Plot bndbox and label in image accoding to the bounding box from xml, and save the cropped image
     Author: Yujin Wang
@@ -544,12 +557,17 @@ def plotRectBox(img,objectlist):
         img
     Usage:
     '''
-
+    annotator = Annotator(img, line_width=3, example="")
+    
     for object in objectlist:
-        xmin, ymin, xmax, ymax = object[1], object[2], object[3], object[4]
-        cv2.rectangle(img,(xmin,ymin),(xmax,ymax),(0,0,255),1)
-        cv2.putText(img, object[0], (int((xmin+xmax)/2),int((ymin+ymax)/2)), cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,255,255),1)
-    return img
+
+        label, xmin, ymin, xmax, ymax,conf =object[0],object[1], object[2], object[3], object[4],object[5]
+        c = names.index(label)
+        label =  f'{names[c]} {conf:.2f}'
+        annotator.box_label([xmin, ymin, xmax, ymax], label, color=colors(c, True))
+        # cv2.rectangle(img,(xmin,ymin),(xmax,ymax),(0,0,255),1)
+        # cv2.putText(img, object[0], (int((xmin+xmax)/2),int((ymin+ymax)/2)), cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,255,255),1)
+    return annotator.result()
     # cv_show('img',img)
 
 def changeHSV1(img,adjh=1.0,adjs=1.0,adjv=1.1):
@@ -620,7 +638,7 @@ def plotFigArray(imglist:list,imgshape=(0,0)):
     # cv_show("canvas", canvas)
     return canvas
 
-def Video2Video(videofile,savedir,interval,offset):
+def Video2Video(videofile,savedir,interval,offset,scale):
     print(videofile)
     cap = cv2.VideoCapture()
     cap.open(videofile)
@@ -632,8 +650,9 @@ def Video2Video(videofile,savedir,interval,offset):
     if offset+interval > totalFrameNumber:
         print("offset+interval > totalFrameNumber")
         return
-    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)*scale)
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)*scale)
+    print(w,h)
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     print(savedir)
     videoWriter = cv2.VideoWriter(savedir, fourcc, 25.0, (w,h)) 
@@ -733,13 +752,6 @@ def main_check_label_xml(xmldir):
     '''
     xmlfiles,_ = getFiles(xmldir, LabelType)
     noobjectfiles,cls = checkLabexml(xmlfiles)
-    savedir = mkFolder(xmldir, "checkres")
-
-    for name in cls.keys():
-        temp = np.array(cls[name]["confidence"])
-        plothist(temp,name,savedir / f'{name}_confidence.jpg')
-        np.savetxt(savedir / f'{name}_confidence_{len(cls[name]["confidence"])}.csv', np.array(cls[name]["confidence"]), delimiter=",")
-
 
     if len(noobjectfiles) != 0:
         savedir = mkFolder(xmldir,"noobject")
@@ -748,6 +760,13 @@ def main_check_label_xml(xmldir):
                 move(cpfile,savedir)
     else:
         print("No unlabeled img found!")
+    
+    savedir = mkFolder(xmldir, "checkres")    
+    for name in cls.keys():
+        temp = np.array(cls[name]["confidence"])
+        plothist(temp,name,savedir / f'{name}_confidence.jpg')
+        np.savetxt(savedir / f'{name}_confidence_{len(cls[name]["confidence"])}.csv', np.array(cls[name]["confidence"]), delimiter=",")
+
 
 
 def main_change_file_name(xmldir):
@@ -850,24 +869,68 @@ def main_crop_object_img(imgdir):
             print(traceback.format_exc())
         id += 1
 
+#
+# def main_plot_bbox(imgdir):
+#     '''
+#         Plot bbox in img
+#     '''
+#     savedir = mkFolder(imgdir,"plotbbox")
+#     imgfull,imgfiles = getFiles(imgdir,ImgType)
+#     cls = input("Class you want to plot(e.g. person,mask): ")
+#     cls = cls.split(",")
+#     total = len(imgfiles)
+#     imgfiles.sort(key=lambda x: int(x[:-4]))
+#     for id in range(len(imgfiles)):
+#         img
+#         bbox,_,_ = getObjectxml(imgfull[id].replace(file[-4:],".xml"),cls)
+#         img = cv2.imread(imgdir + file)
+#         h,w,  _ = img.shape
+#         print(f'w:{w} h:{h}')
+#         img = plotRectBox(img,bbox,names=cls)
+#         print("%d/%d Currrent image: %s" %(id+1,total,file))
+#         imgpath = savedir / file
+#         cv2.imwrite(str(imgpath),img)
+#         if id == 0:
+#             path = os.path.join(savedir,'video.mp4')
+#             print(path)
+#             vid_writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'acv1'), 25, (int(w), int(h)))
+#         vid_writer.write(img)
+#     vid_writer.release()
+#     return
+
 
 def main_plot_bbox(imgdir):
     '''
         Plot bbox in img
     '''
     savedir = mkFolder(imgdir,"plotbbox")
-    imgfull,imgfiles = getFiles(imgdir,ImgType)
+    _,imgfiles = getFiles(imgdir,ImgType)
     cls = input("Class you want to plot(e.g. person,mask): ")
     cls = cls.split(",")
     total = len(imgfiles)
+    try:
+        imgfiles.sort(key=lambda x: int(x.split('_')[0]))
+    except:
+        print("Sorted error!")
+
     for id,file in enumerate(imgfiles):
-        bbox,_,_ = getObjectxml(imgfull[id].replace(file[-4:],".xml"),cls)
+        print(file)
+        xmlfile = imgdir + file.replace(file[-4:],".xml")
+        bbox,_,_ = getObjectxml(xmlfile,cls)
         img = cv2.imread(imgdir + file)
-        img = plotRectBox(img,bbox)
+        h,w,  _ = img.shape
+        print(f'w:{w} h:{h}')
+        img = plotRectBox(img,bbox,names=cls)
         print("%d/%d Currrent image: %s" %(id+1,total,file))
         imgpath = savedir / file
         cv2.imwrite(str(imgpath),img)
-    return 
+        if id == 0:
+            path = os.path.join(savedir,'video.mp4')
+            print(path)
+            vid_writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'acv1'), 25, (int(w), int(h)))
+        vid_writer.write(img)
+    vid_writer.release()
+    return
 
 def main_create_square_image_samples(filedir1):
     '''
@@ -975,9 +1038,10 @@ def main_video2video(videodir):
     _,filelist = getFiles(videodir,VideoType)
     interval = int(input("Input interval frame number:"))
     offset = int(input("Input offset frame number:"))
+    scale = float(input("Input scale ratio:"))
     savedir = mkFolder(videodir,'video')
     for file in filelist:
-        Video2Video(os.path.join(videodir,file),os.path.join(savedir,file),interval,offset)
+        Video2Video(os.path.join(videodir,file),os.path.join(savedir,file),interval,offset,scale)
 
 def main_movobject(xmldir):
     '''
@@ -985,10 +1049,11 @@ def main_movobject(xmldir):
     '''
     xmlfiles,_ = getFiles(xmldir,LabelType)
     cls = input("Class name(only one label,e.g. person):")
+    numclass = int(input("Number threshold of labels(def. 99):"))
     cls = cls.split(',')
     for i in cls:
         savedir = mkFolder(xmldir,i)
-        movObjectxml(xmlfiles,i,savedir)
+        movObjectxml(xmlfiles,i,savedir,numclass)
 
 def main_remunusedfile(xmldir):
     '''
@@ -1025,8 +1090,7 @@ def main_imgchangetojpg(imgdir):
     for img in imgsdir:
          im = cv2.imread(img) 
          print(img.split('.')[0]+'.jpg')
-         cv2.imwrite(img.split('.')[0]+'.jpg',im)   
-
+         cv2.imwrite(img.split('.')[0]+'.jpg',im)  
 
 if __name__ == "__main__":
     try:
@@ -1036,8 +1100,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\yolov5\data\images/"
-        file_dir = r"C:\Users\Lenovo\Desktop\11111/"
+        file_dir = r"Y:/new_img/Base/"
         # pass
 
     try:
@@ -1062,7 +1125,7 @@ if __name__ == "__main__":
         elif action == "cropObject": #cropObject
             print(main_crop_object_img.__doc__)
             main_crop_object_img(file_dir)
-        elif action == "plotBBox":
+        elif action == "plotBBox":#plotBBox
             print(main_plot_bbox.__doc__)
             main_plot_bbox(file_dir)
         elif action == "checklabelxml":#checklabelxml

@@ -194,7 +194,7 @@ def subsBG(bg_img,fg_img):
     else:
         return bg_img,[]
 
-def rotimg(img,angle,scale=1,prob=1.0):
+def rotimg(img,angle,prob=1.0,scale=1):
     '''
     Description: Rotate and scale image
     Author: Yujin Wang
@@ -305,9 +305,14 @@ def pasteImg(bg_img,fg_img,pos,checkrange):
             return bg_img,[]
 
 
-def reflectimg(img,prob=1.0):
+def reflectimg(img,prob=1.0,fliptype = 'v'):
     if random.random() < prob:
-        return cv2.flip(img,1)
+        if fliptype == 'v':
+            return cv2.flip(img,0)
+        if fliptype == 'h':
+            return cv2.flip(img,1)
+        if fliptype == 'vh':
+            return cv2.flip(img,-1)
     else:
         return img
 
@@ -335,22 +340,31 @@ def hsvadjust1(img,prob=1.0):
         h_norm = (hue/np.max(hue)*180).astype(dtype)
         s_norm = (sat/np.max(sat)*255).astype(dtype)
         v_norm = (val/np.max(val)*255).astype(dtype)
-        img_hsv =  cv2.merge([h_norm,s_norm,v_norm])
+        img_hsv = cv2.merge([h_norm,s_norm,v_norm])
         return cv2.cvtColor(img_hsv,cv2.COLOR_HSV2BGR)
 
-def main_augmentImgs(imgdir,prob=1.0):
+def main_augmentImgs(imgdir,prob=[1,1,0,0]):
     '''
        Augmentation for Images
     '''
     imgfilespath,imgfiles= getFiles(imgdir,ImgType)
-    savedir = mkFolder(imgdir,"augmentation")
+    fliptype = input("Flip type(v,h,vh):")
+    savedir = mkFolder(imgdir,"augmentation_"+fliptype)
+
     for id,img in enumerate(imgfiles):
         im = cv2.imread(imgfilespath[id])
-        im = reflectimg(im,prob=1.0)
-        im = hsvadjust1(im,prob=1.0)
-        im = rotimg(im, 30, scale=1, prob=1.0)
-        im = rgb2gray(im,prob=0.7)
-        imgdir = savedir / f"{img[:-4]}_aug.jpg"
+        files = findRelativeFiles(imgfilespath[id])
+
+
+        im = reflectimg(im,prob[0],fliptype=fliptype)
+        im = hsvadjust1(im,prob[1])
+        im = rotimg(im, 30, prob[2],scale=1)
+        im = rgb2gray(im,prob[3])
+        imgdir = savedir / f"{img[:-4]}_aug_{fliptype}.jpg"
+        xmldir = savedir / f"{img[:-4]}_aug_{fliptype}.xml"
+        for file in files:
+            if ".xml" in file:
+                flipObjextxml(file,str(xmldir),fliptype)
 
         cv2.imwrite(imgdir.__str__(), im)
 
@@ -363,8 +377,8 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\yolov5\data\images/"
-        file_dir = r"D:\02_Study\01_PaddleDetection\Pytorch\resnet18_phone\test/"
+ 
+        file_dir = r"D:/01_Project/02_Baosteel/01_Input/Dataset/V4_20220801/maindefectforlabel/labelwork/done/test/"
         # pass
     try:
         if action == "augmentation":#augmentation
