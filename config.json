@@ -1,5 +1,6 @@
 {
-	"yolov5":"D:/02_Study/01_PaddleDetection/Pytorch/yolov5",
+	"yolov5":"D:/03_Framework/yolov5",
+    "yolov5-6.2":"D:/03_Framework/yolov5-6.2",
 	"task_list":[ "person","pose","mask"],
 	"model": {
 		"pose": {
@@ -12,7 +13,7 @@
 			"device": "cuda:0"
 		},
 		"person": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/person_smoke/best_5l6_liuyi.pt",
 			"classes": ["person","smoke","remote","cell phone"],
 			"save_dir":"./",
@@ -22,7 +23,7 @@
 			"device": "cpu"
 		},
 		"mask": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/mask/best_0603.pt",
 			"classes": ["mask","nomask"],
 			"save_dir":"./",
@@ -32,7 +33,7 @@
 			"device": "cpu"
 		},
 		"mask_yl": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/mask_yl_6cls/best_0613.pt",
 			"classes": ["mask","nomask","work_yl1","work_yl2","nowork_yl1","nowork_yl2"],
 			"save_dir":"./",
@@ -42,7 +43,7 @@
 			"device": "cpu"
 		},
 		"phone": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/phone/best.pt",
 			"classes": ["phone"],
 			"save_dir":"./",
@@ -52,7 +53,7 @@
 			"device": "cpu"
 		},
 		"alarm": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/alarm/alarm_best_05_23.pt",
 			"classes": ["alarm","noalarm"],
 			"save_dir":"./",
@@ -62,7 +63,7 @@
 			"device": "cpu"
 		},
 		"alarm4cls": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/alarm_4cls/best_0626.pt",
 			"classes": ["alarm","noalarm","person","alarm instrument"],
 			"save_dir":"./",
@@ -72,7 +73,7 @@
 			"device": "cpu"
 		},
 		"person_alarm": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/person_alarm/best.pt",
 			"classes": ["person","alarm instrument"],
 			"save_dir":"./",
@@ -82,7 +83,7 @@
 			"device": "cpu"
 		},
 		"smoke": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/smoke/best.pt",
 			"classes": ["smoke"],
 			"save_dir":"./",
@@ -92,7 +93,7 @@
 			"device": "cpu"
 		},
 		"steel": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/steel/best.pt",
 			"classes": ["1","2","3","4"],
 			"save_dir":"./",
@@ -102,7 +103,7 @@
 			"device": "cpu"
 		},
 		"safetybelt": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/safetybelt/saftybelt_small.pt",
 			"classes": ["person","safetybelt","nosafetybelt"],
 			"save_dir":"./",
@@ -112,7 +113,7 @@
 			"device": "cpu"
 		},
 		"helmet": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/helmet/best.pt",
 			"classes": ["helmet","head"],
 			"save_dir":"./",
@@ -122,18 +123,18 @@
 			"device": "cpu"
 		},
 		"mask_9cls": {
-			"detect:":"yolo",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/mask_9cls/mask_9cls_best_0619.pt",
 			"classes": ["mask","nomask","work_jzwzy","work_jzws","work_cw","work_yl1","work_yl2","nowork_yl1","nowork_yl2"] ,
 			"save_dir":"./",
 			"conf_thres": 0.6,
 			"iou_thres": 0.45,
 			"imgsize":640,
-			"device": "cpu"
+			"device": "GPU"
 		},
 		"falldown_2cls": {
-			"detect:":"Resnet",
-			"weights": "D:\\05_Trick\\modellib\\falldown_2cls\\resnet_classify_best_fold_epch0.pth",
+			"detect":"Resnet",
+			"weights": "D:/05_Trick/modellib/falldown_2cls/resnet_classify_best_fold_epch0.pth",
 			"classes": ["0","1","2"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
@@ -142,8 +143,8 @@
 			"device": "cpu"
 		},
 		"phone_3cls": {
-			"detect:":"Resnet",
-			"weights": "D:\\05_Trick\\modellib\\phone_3cls\\model_best.pth",
+			"detect":"Resnet",
+			"weights": "D:/05_Trick/modellib/phone_3cls/model_best.pth",
 			"classes": ["call","other","play"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
@@ -152,8 +153,8 @@
 			"device": "cpu"
 		},
 		"phone_falldown_5cls": {
-			"detect:":"Resnet",
-			"weights": "D:\\05_Trick\\modellib\\phone_falldown\\model_best.pth",
+			"detect":"Resnet",
+			"weights": "D:/05_Trick/modellib/phone_falldown/model_best.pth",
 			"classes": ["0","1","2","3","4"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
@@ -162,14 +163,24 @@
 			"device": "cpu"
 		},
 		"baosteel_surfacedefect_20cls": {
-			"detect:":"yolo",
-			"weights": "D:\\05_Trick\\modellib\\baosteel_surfacedefect_20cls\\best_0811.pt",
-			"classes": ["bbqp","bdxtp","bs","bx","cs","dr","hb","hx","jqtw","jz","kd","qp","tph","yh","zh","zp","by"],
+			"detect":"yolov5",
+			"weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_0822.pt",
+			"classes": ["bbqp","bdxtp","bs","bx","cs","dr","hb","hx","jqtw","jz","kd","qp","tph","yh","zh","zp","by","tph1"],
 			"save_dir":"./",
 			"conf_thres": 0.1,
 			"iou_thres": 0.45,
 			"imgsize":768,
-			"device": "cpu"
+			"device": "GPU"
+		},
+		"baosteel_surfacedefect_201cls": {
+			"detect":"yolov5-6.2",
+			"weights": "D:/05_Trick/modellib/baosteel_surfacedefect_2cls/best.pt",
+			"classes": ["item"],
+			"save_dir":"./",
+			"conf_thres": 0.1,
+			"iou_thres": 0.45,
+			"imgsize":768,
+			"device": "GPU"
 		}
 	},
 	"rules": {
@@ -216,6 +227,35 @@
 			],
 			"priority": {
 				"mask": true
+			}
+		},
+		"baosteel_surfacedefect_20cls":{
+			"name":[
+				"bbqp","bdxtp","bs","bx","cs","dr","hb","hx","jqtw","jz","kd","qp","tph","yh","zh","zp"
+			],
+			"confidence": [
+				   0.4,0.4,0.4 ,0.4 ,0.4 ,0.4 ,0.4 ,0.4 ,0.4 ,0.4 ,0.4 ,0.4 ,0.4 ,0.4 ,0.4 ,0.4
+			],
+			"cases": [
+				"bbqp","bdxtp","bs","bx","cs","dr","hb","hx","jqtw","jz","kd","qp","tph","yh","zh","zp","bg"
+			],
+			"priority": {
+				"bbqp": true,
+				"bdxtp": true,
+				"bs": true,
+				"bx": true,
+				"cs": true,
+				"dr": true,
+				"hb": true,
+				"hx": true,
+				"jqtw": true,
+				"jz": true,
+				"kd": true,
+				"qp": true,
+				"tph": true,
+				"yh": true,
+				"zh": true,
+				"zp": true
 			}
 		}
 	},

@@ -27,11 +27,10 @@ LabelType = ['*.xml']
 
 pyscriptpath = r'D:\05_Trick\Trick'
 configpath = os.path.join(pyscriptpath,"config.json")
+
 with open(configpath, 'r') as c:
     config = json.load(c)
-sys.path.append(config["yolov5"])
 
-from utils.plots import Annotator, colors, save_one_box
 
 
 def window_xml(xmlpath,bboxes,window,cls=["person"]):
@@ -557,6 +556,8 @@ def plotRectBox(img,objectlist,names):
         img
     Usage:
     '''
+    sys.path.append(config["yolov5"])
+    from utils.plots import Annotator, colors, save_one_box
     annotator = Annotator(img, line_width=3, example="")
     
     for object in objectlist:

@@ -13,7 +13,7 @@ from threading import Thread
 
 
 from models.common import DetectMultiBackend
-from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
+# from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
 from utils.datasets import create_dataloader
 from utils.general import (LOGGER, box_iou, check_dataset, check_img_size, check_requirements, check_yaml,
                            coco80_to_coco91_class, colorstr, increment_path, non_max_suppression, print_args,
@@ -120,7 +120,7 @@ class Validation(Infer):
         niou = iouv.numel()
         testdir = rundir + '/test.txt'
         dataloader = create_dataloader(testdir, self.imgsize[0], self.batch_size, self.stride, single_cls, pad=0.0, rect=self.pt,
-                                       workers=8, prefix=colorstr(f'test: '))[0]
+                                       workers=2, prefix=colorstr(f'test: '))[0]
         seen = 0
         confusion_matrix = ConfusionMatrix(nc=nc,conf=self.conf_thres, iou_thres=self.iou_thres)
         names = {k: v for k, v in enumerate(self.model.names if hasattr(self.model, 'names') else self.model.module.names)}

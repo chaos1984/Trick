@@ -10,5 +10,8 @@ class Infer():
         self.conf_thres = config["conf_thres"] # confidence threshold
         self.iou_thres =  config["iou_thres"]  # NMS IOU threshold
         self.imgsize = (config["imgsize"],config["imgsize"]) #imgsize
-        self.device = torch.device(config["device"])
+        if torch.cuda.is_available() and config["device"] == 'GPU':
+            self.device = torch.device("cuda")
+        else:
+            self.device = torch.device(config["device"])
 

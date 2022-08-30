@@ -23,11 +23,8 @@ pyscriptpath = r'D:\05_Trick\Trick'
 configpath = os.path.join(pyscriptpath,"config.json")
 with open(configpath, 'r') as c:
     config = json.load(c)
-sys.path.append(config["yolov5"])
 
-from Detectbase.PersonInfer import PersonInfer,Validation
 from Detectbase.Resnet_multiclass import ResnetDetector
-
 
 def xmlfilefromobjdetect(infer,imglist,imgdir):
     '''
@@ -70,14 +67,14 @@ def check_confidence_conexit(bboxs,cls,conf):
          checkres[dict]:{'person': False, 'alarm': False, 'noalarm': False, 'alarm instrument': False}
       Usage:
     '''
-    res = [False for i in range(len(cls))]
+    res = [(False,0) for i in range(len(cls))]
     checkres = dict(zip(cls,res))
     for bbox in bboxs:
         clsname = bbox[0]; clsconf = bbox[5]
         conf_threshold = conf[cls.index(clsname)]
         if clsname in cls:
             if clsconf > conf_threshold:
-                checkres[clsname] = True
+                checkres[clsname] = (True,clsconf)
         else:
             pass
     return checkres
@@ -94,7 +91,10 @@ def count(d):
          return[int]:max length of dictionary
       Usage:
     '''
-    return max(count(v) if isinstance(v, dict) else 0 for v in d.values()) + 1
+    if isinstance(d, dict):
+        return max(count(v) if isinstance(v, dict) else 0 for v in d.values()) + 1
+    else:
+        return 0
 
 def decison(ret,checkdict,cases = ["Background","True","False"]):
     '''
@@ -117,20 +117,44 @@ def decison(ret,checkdict,cases = ["Background","True","False"]):
             # print(type(ret[k]),type(checkdict[k]))
             if ret[k] == False:
                 checkcount += 1
-                if checkcount == len(klist) :
+                if checkcount == len(klist):
                     if i != loop-1:
-                        return cases[0]                       # BG(ignore)
+                        return None                       # BG(ignore)
                     else:
-                        return cases[2]                       # False
+                        return "bg"                       # False
             elif ret[k] == checkdict[k]:
-                return cases[1]                               # True
+                return k                               # True
             else:
                 if isinstance(checkdict[k],dict):
                     checkdict = checkdict[k]
                 else:
                     pass
-    return cases[2]
+    return False
 
+def decison_cls(ret,checkdict,case):
+    '''
+      Description: Make decison based on the rules
+      Author: Yujin Wang
+      Date: 2022-04-11
+      Args:
+         ret[dict]: xml bbounding box information.
+         checkdict[dict]:rules in config
+      Return:
+          Boolaan
+      Usage:
+    '''
+    check_res = []
+    max_conf = 0
+    max_k = 'bg'
+    for k,v in ret.items():
+        if v[0] == True and checkdict[k] == True:
+            check_res.append(k)
+            if v[1] > max_conf:
+                max_k  = k
+                max_conf = v[1]
+        if case in check_res:
+            return case
+    return max_k
 
 
 def DOE_FullFactor(dimensons,checkrange):
@@ -176,13 +200,14 @@ def checkPerformance(cases,xmldir,checkdict,cls,conf):
             id += 1
             bboxs, _, _ = getObjectxml(xmlfile, cls)
             filterbox = check_confidence_conexit(bboxs, cls, conf)  #
-            dec = decison(filterbox, checkdict,cases = cases)
+            dec = decison_cls(filterbox, checkdict,case)
             res.append([xmlfile, case, str(dec)])
+
     return res
 
 
 
-def cm_plot(cases,conf, y_act, y_pred,imgdir,plotflag = True):
+def cm_plot(cases,conf,y_act, y_pred,imgdir,labels,plotflag = True):
     '''
     y: 真实值
     y_pred:预测值
@@ -191,13 +216,14 @@ def cm_plot(cases,conf, y_act, y_pred,imgdir,plotflag = True):
     from sklearn.metrics import confusion_matrix  # 导入混淆矩阵函数
     from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score
     from sklearn.metrics import PrecisionRecallDisplay
+    plt.rcParams['font.size'] = 7
     cm = confusion_matrix(y_act, y_pred,labels = cases ) # 混淆矩阵
-    cm_row = cm / np.sum(cm, axis=1)
-    cm_col = cm / np.sum(cm, axis=0)
-
-    accuracy = accuracy_score(y_act, y_pred);
+    a = [np.sum(i) for i in cm]
+    # cm_row = cm / np.sum(cm, axis=1)
+    # cm_col = cm / np.sum(cm, axis=0)
+    accuracy = accuracy_score(y_act, y_pred)
     precision = precision_score(y_act, y_pred,average='weighted')
-    recall = recall_score(y_act, y_pred,average='weighted');
+    recall = recall_score(y_act, y_pred,average='weighted')
     f1 = f1_score(y_act, y_pred,average='weighted')
 
     if plotflag:
@@ -206,26 +232,32 @@ def cm_plot(cases,conf, y_act, y_pred,imgdir,plotflag = True):
         plt.colorbar()  # 颜色标签
         for x in range(len(cm)):  # 数据标签
             for y in range(len(cm)):
-                row = round(cm_row[x, y], 2);
-                col = round(cm_col[x, y], 2)
-                info = f"Recall:{row}\nPrecison:{col}"
+                row = round(cm[x, y]/a[x], 2);
+                col = round(cm[x, y], 2)
+                # info = f"Recall:{row}\nPrecison:{col}"
+                info = f"{row}"
                 plt.annotate(info, xy=(y, x), verticalalignment='center', horizontalalignment='center')
+        plt.xlabel('Predicted label')  # 坐标轴标签
         plt.ylabel('True label')  # 坐标轴标签
         # labels=["BG","False","True"]
-        plt.yticks([0,1,2],cases)
-        plt.xticks([0,1,2],cases)
-        plt.xlabel('Predicted label')  # 坐标轴标签
+        plt.yticks(range(len(labels)), labels)
+        plt.xticks(range(len(labels)), labels)
+
         conf = [round(i,2) for i in conf]
         plt.title("{}\nA:{} P:{} R:{} F1:{} Recall_33:{} Precion_33:{}\n".format(conf,round(accuracy,2),round(precision,2),round(recall,2),round(f1,2),round(row,2),round(col,2)))
 
-        plt.savefig(imgdir+"/Confuse_Matrix.jpg",dpi=100)
-    return {"accuracy":accuracy,"precision":precision,"recall":recall,"f1":f1,"row":cm_row[-1,-1],"col":cm_col[-1,-1]}
+        plt.savefig(imgdir+"/Confuse_Matrix.jpg",dpi=1200)
+    return {"accuracy":accuracy,"precision":precision,"recall":recall,"f1":f1}
 
 # main program
 def main_create_xml(imgdir,model = config["model"]["phone"]):
     '''
         Create xml by infering
     '''
+    # initializaition(model["detect"])
+    sys.path.append(config[model['detect']])
+    from Detectbase.PersonInfer import PersonInfer,Validation
+
     infer = PersonInfer(model)
     _,imgfiles = getFiles(imgdir,ImgType)
     xmlfilefromobjdetect(infer,imgfiles,imgdir)
@@ -298,7 +330,8 @@ def main_checkConfidence(xmldir,rules,DOE = None):
         print("{}/{}:{}".format(id+1,total,conf))
         res = checkPerformance(cases,xmldir,checkdict,cls,conf)                    # Judge the class
         res = pd.DataFrame(res, columns=["File", "Actual", "Prediction"])
-        eva = cm_plot(cases,conf,res['Actual'], res["Prediction"], xmldir,plotflag = plotflag)
+        labels = []
+        eva = cm_plot(cases,conf,res['Actual'], res["Prediction"], xmldir,cls , plotflag = plotflag)
         temp = list(conf)
         temp1 = list(eva.values())
         temp.extend(temp1)
@@ -324,6 +357,8 @@ def main_val_xml(imgdir,model = config["model"]["phone"]):
     '''
         Create xml by infering
     '''
+    sys.path.append(config[model['detect']])
+    from Detectbase.PersonInfer import Validation
     ptname = model['weights'].split('/')[-1] + "_" + str(model["imgsize"])
     save_dir = mkFolder(imgdir, "validation_"+ptname)
     val = Validation(model)
@@ -357,7 +392,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"C:\Users\Lenovo\Desktop\phone_class\test\frame\cell phone_crop/"
+        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\09_Test\val\images\item/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)
@@ -384,7 +419,7 @@ if __name__ == "__main__":
         elif action == "smokexml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["smoke"])
-        elif action == "baosteel_surfacedefect_20cls":
+        elif action == "baosteel_surfacedefect_20cls":#
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["baosteel_surfacedefect_20cls"])
         elif action == "helmetxml":
@@ -394,10 +429,10 @@ if __name__ == "__main__":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["safetybelt"])
         # main_create_xml(file_dir, model=config["model"]["person_alarm"])
-        elif action == "mask_9clstxml":
+        elif action == "mask_9clstxml":#mask_9clstxml
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["mask_9cls"])
-        elif action == "checkconfidence":
+        elif action == "checkconfidence":#checkconfidence
             print(main_checkConfidence.__doc__)
             name = input("Object rules for check(alarm,mask):")
             main_checkConfidence(file_dir,rules=config["rules"][name])
@@ -409,7 +444,7 @@ if __name__ == "__main__":
             print(main_checkConfidence.__doc__)
             name = input("Object rules for check(alarm,mask):")
             main_checkConfidence(file_dir,rules=config["rules"][name],DOE=config["DOE"][name])
-        elif action == "validation":#validation
+        elif action == "":#validation
             name = input("Validation for yolov5(alarm,mask):")
             main_change_voc_to_yolo(file_dir,cls=config["model"][name]["classes"])
             main_yolo_train_val_set(file_dir, task='test')
