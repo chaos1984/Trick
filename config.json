@@ -172,7 +172,7 @@
 			"imgsize":768,
 			"device": "GPU"
 		},
-		"baosteel_surfacedefect_201cls": {
+		"baosteel_surfacedefect_1cls": {
 			"detect":"yolov5-6.2",
 			"weights": "D:/05_Trick/modellib/baosteel_surfacedefect_2cls/best.pt",
 			"classes": ["item"],

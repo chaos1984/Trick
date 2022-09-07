@@ -22,16 +22,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 ImgType = ['*.jpg','*.jpeg','*.tif','*.png','*.bmp']
-VideoType = ['*.avi','*.mp4','hav']
+VideoType = ['*.avi','*.mp4','hav','.h5']
 LabelType = ['*.xml']
-
-pyscriptpath = r'D:\05_Trick\Trick'
+pyscriptpath = os.path.split(os.path.realpath(__file__))[0]
 configpath = os.path.join(pyscriptpath,"config.json")
 
 with open(configpath, 'r') as c:
     config = json.load(c)
-
-
 
 def window_xml(xmlpath,bboxes,window,cls=["person"]):
     h = window[2]-window[0];w = window[3]-window[1];c=3
@@ -561,8 +558,10 @@ def plotRectBox(img,objectlist,names):
     annotator = Annotator(img, line_width=3, example="")
     
     for object in objectlist:
-
-        label, xmin, ymin, xmax, ymax,conf =object[0],object[1], object[2], object[3], object[4],object[5]
+        if len(object)==6:
+            label, xmin, ymin, xmax, ymax,conf =object[0],object[1], object[2], object[3], object[4],object[5]
+        else:
+            label, xmin, ymin, xmax, ymax,conf =object[0],object[1], object[2], object[3], object[4],0
         c = names.index(label)
         label =  f'{names[c]} {conf:.2f}'
         annotator.box_label([xmin, ymin, xmax, ymax], label, color=colors(c, True))
@@ -933,6 +932,7 @@ def main_plot_bbox(imgdir):
     vid_writer.release()
     return
 
+
 def main_create_square_image_samples(filedir1):
     '''
         Create a square image with padding
@@ -1070,20 +1070,6 @@ def main_remunusedfile(xmldir):
         if len(findRelativeFiles(file)) == 1:
             move(file,unuseddir)
 
-# def main_getBestConfidenceThr():
-#     rightarray = np.loadtxt(r"D:\01_Project\01_Pangang\08_Video\dataset\Test\zks\zks\confidence_right\cell phone_crop_1024\checkres\cell phone_confidence_355.csv", delimiter=',')
-#     wrongarray = np.loadtxt(
-#         r"D:\01_Project\01_Pangang\08_Video\dataset\Test\zks\zks\confidence_right\cell phone_crop_1024\wrong\checkres\cell phone_confidence_12.csv",
-#         delimiter=',')
-#     data = []
-#     for i in np.linspace(0,1,100):
-#         c_right = np.sum(rightarray >= i);c_wrong = np.sum(wrongarray >= i)
-#         total = c_right + c_wrong
-#         if c_right + c_wrong != 0:
-#             precison = c_right / total
-#             recall = c_right / len(rightarray)
-#             data.append([i,precison,recall])
-#     data = pd.DataFrame(data,columns=["conf-thr","precison","recall"])
 
 def main_imgchangetojpg(imgdir):
     " Change images' format to jpg "
@@ -1091,7 +1077,86 @@ def main_imgchangetojpg(imgdir):
     for img in imgsdir:
          im = cv2.imread(img) 
          print(img.split('.')[0]+'.jpg')
-         cv2.imwrite(img.split('.')[0]+'.jpg',im)  
+         cv2.imwrite(img.split('.')[0]+'.jpg',im)
+
+def main_split_images(imgdir):
+    " Split image to several jpg with w and h user defined or random "
+    w = int(input("Crop image's width:"))
+    h = int(input("Crop image's height:"))
+    if  input("Randomflag('No'):") == "No":
+        randomflag = False
+    else:
+        randomflag = True
+        random_num = input("No. of images:")
+    # w= 780;h =144; randomflag = True;random_num=2
+    savedir = mkFolder(imgdir,"Crop_images")
+    imgfiles, _ = getFiles(imgdir, ImgType)
+
+    for imgfile in imgfiles:
+        im = cv2.imread(imgfile)
+        im_h,im_w,im_c = im.shape
+        if im_h >= h and im_w >= w:
+            if randomflag == True:
+                for i in range(random_num):
+                    h0 = random.randrange(0, im_h - h)
+                    w0 = random.randrange(0,im_w-w)
+                    crop_img = im[h0:h0 + h, w0:w0 + w]
+                    filename = os.path.split(imgfile)[-1]
+                    saveimg = os.path.join(savedir, filename[:-4] + '_' + str(i) + '.jpg')
+                    cv2.imwrite(saveimg, crop_img)
+            else:
+                index = 0
+                for i in range(im_w//w):
+                    for j in range(im_h // h):
+                        h0 = 0+i*h;w0 = 0+j*w
+                        crop_img = im[h0:h0+h, w0:w0+w]
+                        index += 1
+                        filename = os.path.split(imgfile)[-1]
+                        saveimg = os.path.join(savedir, filename[:-4] + '_' + str(index) + '.jpg')
+                        cv2.imwrite(saveimg, crop_img)
+                if  im_w%w != 0 and im_h%h != 0:
+                    index += 1
+                    crop_img = im[im_h-h:im_h, im_w-w:im_w]
+                    saveimg = os.path.join(savedir, filename[:-4] + '_' + str(index) + '.jpg')
+                    cv2.imwrite(saveimg, crop_img)
+        else:
+            print("Image size user defined dosen't meet image shape.")
+
+def main_img_to_video(imgdir):
+    " Change images to a video "
+    savedir = mkFolder(imgdir,"video")
+    _,imgfiles = getFiles(imgdir,ImgType)
+    imgfiles.sort()
+    for id, file in enumerate(imgfiles):
+        img = cv2.imread(imgdir + file)
+        h, w, _ = img.shape
+        if id == 0:
+            path = os.path.join(savedir,'video.mp4')
+            print(path)
+            vid_writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'acv1'), 1, (int(w), int(h)))
+        vid_writer.write(img)
+    vid_writer.release()
+
+def main_padding_image(imgdir):
+    " Padding images "
+    savedir = mkFolder(imgdir,"Paddding_rectangle")
+    imgfull,_ = getFiles(imgdir,ImgType)
+    for imgdir in imgfull:
+        img = cv2.imread(imgdir)
+        filename = os.path.split(imgdir)[-1]
+        size = img.shape
+        h = size[0]
+        w = size[1]
+        WHITE = [255,255,255]
+        if w > h:
+            border = (w - h) // 2
+            constant = cv2.copyMakeBorder(img, border, border, 0, 0, cv2.BORDER_CONSTANT,value = WHITE)
+        else:
+            border = (h - w) // 2
+            constant = cv2.copyMakeBorder(img, 0, 0, border, border, cv2.BORDER_CONSTANT, value=WHITE)
+
+        new_file_path =  os.path.join(savedir,f'{filename[:-4]}' + '_padding.tif')
+        cv2.imwrite(new_file_path, constant)
 
 if __name__ == "__main__":
     try:
@@ -1101,7 +1166,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"Y:/new_img/Base/"
+        file_dir = r"C:\Users\Yoking\Desktop\bblw\test/"
         # pass
 
     try:
@@ -1162,7 +1227,15 @@ if __name__ == "__main__":
         elif action == "imgchangetojpg":
             print(main_imgchangetojpg.__doc__)
             main_imgchangetojpg(file_dir)
-        
+        elif action == "splitimages":#
+            print(main_split_images.__doc__)
+            main_split_images(file_dir)
+        elif action == "imgtovideo":
+            print(main_split_images.__doc__)
+            main_img_to_video(file_dir)
+        elif action == "":#paddingimage
+            print(main_padding_image.__doc__)
+            main_padding_image(file_dir)
     except Exception as e:
         print(e)
         print(traceback.format_exc())

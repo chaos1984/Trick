@@ -18,8 +18,7 @@ import traceback
 
 ImgType = ['*.jpg','*.jpeg','*.tif','*.png']
 VideoType = ['*.avi','*.mp4']
-
-pyscriptpath = r'D:\05_Trick\Trick'
+pyscriptpath = os.path.split(os.path.realpath(__file__))[0]
 configpath = os.path.join(pyscriptpath,"config.json")
 with open(configpath, 'r') as c:
     config = json.load(c)
@@ -392,7 +391,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\09_Test\val\images\item/"
+        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\02_Dataset\test/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)
@@ -419,7 +418,7 @@ if __name__ == "__main__":
         elif action == "smokexml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["smoke"])
-        elif action == "baosteel_surfacedefect_20cls":#
+        elif action == "":#baosteel_surfacedefect_20cls
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["baosteel_surfacedefect_20cls"])
         elif action == "helmetxml":
@@ -444,7 +443,7 @@ if __name__ == "__main__":
             print(main_checkConfidence.__doc__)
             name = input("Object rules for check(alarm,mask):")
             main_checkConfidence(file_dir,rules=config["rules"][name],DOE=config["DOE"][name])
-        elif action == "":#validation
+        elif action == "validation":#validation
             name = input("Validation for yolov5(alarm,mask):")
             main_change_voc_to_yolo(file_dir,cls=config["model"][name]["classes"])
             main_yolo_train_val_set(file_dir, task='test')
