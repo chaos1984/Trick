@@ -120,10 +120,10 @@ def movObjectxml(xmlfiles,cls,savedir,numclass = 99):
         tree = ET.parse(xmlfile)
         root = tree.getroot()
         objects = root.findall("object")
-        if  len(objects) <= numclass:
+        if len(objects) <= numclass:
             for obj in objects:
                 name = obj.find('name').text
-                if name == cls:
+                if name.strip() == cls:
                     for cpfile in findRelativeFiles(xmlfile[:-4]):
                         move(cpfile,savedir)
         else:

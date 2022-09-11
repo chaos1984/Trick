@@ -1,6 +1,7 @@
 {
 	"yolov5":"D:/03_Framework/yolov5",
-    "yolov5-6.2":"D:/03_Framework/yolov5-6.2",
+  	"yolov5-6.2": "D:/03_Framework/yolov5-6.2",
+  	"yolov7":"D:/03_Framework/YoloV7",
 	"task_list":[ "person","pose","mask"],
 	"model": {
 		"pose": {
@@ -162,9 +163,19 @@
 			"imgsize":224,
 			"device": "cpu"
 		},
-		"baosteel_surfacedefect_20cls": {
-			"detect":"yolov5",
-			"weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_0822.pt",
+    "baosteel_surfacedefect_20cls": {
+      "detect": "yolov5",
+      "weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_0822.pt",
+      "classes": [ "bbqp", "bdxtp", "bs", "bx", "cs", "dr", "hb", "hx", "jqtw", "jz", "kd", "qp", "tph", "yh", "zh", "zp", "by", "tph1" ],
+      "save_dir": "./",
+      "conf_thres": 0.1,
+      "iou_thres": 0.45,
+      "imgsize": 768,
+      "device": "GPU"
+    },
+    "baosteel_surfacedefect_20cls_Yolov7": {
+			"detect":"yolov7",
+			"weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls_Yolov7/best.pt",
 			"classes": ["bbqp","bdxtp","bs","bx","cs","dr","hb","hx","jqtw","jz","kd","qp","tph","yh","zh","zp","by","tph1"],
 			"save_dir":"./",
 			"conf_thres": 0.1,

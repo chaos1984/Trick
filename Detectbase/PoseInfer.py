@@ -16,7 +16,7 @@ def yolo2bbox(data):
             res.append({'bbox': np.array(i[:4])})
     return res
 
-class PoseInfer(Infer):
+class ObjectDetect(Infer):
     def __init__(self,config):
         Infer.__init__(self, config)
         self.model = init_pose_model(self.data, self.weights, device=self.device)

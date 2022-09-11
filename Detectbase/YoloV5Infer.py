@@ -47,10 +47,11 @@ def process_batch(detections, labels, iouv):
         correct[matches[:, 1].long()] = matches[:, 2:3] >= iouv
     return correct
 
-class PersonInfer(Infer):
+class ObjectDetect(Infer):
     def __init__(self,config):
         Infer.__init__(self, config)
         # self.imgsz = (640, 640)
+
         self.max_det=1000  # maximum detections per image
         self.classes = None  # filter by class: --class 0, or --class 0 2 3
         self.agnostic_nms = False  # class-agnostic NMS
@@ -75,10 +76,13 @@ class PersonInfer(Infer):
         if len(im.shape) == 3:
             im = im[None]  # expand for batch dim
         # Inference
+        t1 = time_sync()
         pred = self.model(im, augment=False, visualize=False)
+        t2 = time_sync()
         pred = non_max_suppression(pred, self.conf_thres, self.iou_thres, self.classes, self.agnostic_nms,
                                    max_det=1000)
-
+        t3 = time_sync()
+        print(f'Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
         # Process predictions
 
         self.res = []

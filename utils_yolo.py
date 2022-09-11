@@ -25,6 +25,18 @@ with open(configpath, 'r') as c:
 
 from Detectbase.Resnet_multiclass import ResnetDetector
 
+def checkmodel(model,mode="detect"):
+    sys.path.append(config[model['detect']])
+    if model['detect'] == "yolov5":
+        from Detectbase.YoloV5Infer import ObjectDetect, Validation
+    elif model['detect'] == "yolov7":
+        from Detectbase.YoloV7Infer import ObjectDetect, Validation
+    if mode == "detect":
+        return ObjectDetect(model)
+    elif mode == "detect":
+        return Validation(model)
+
+
 def xmlfilefromobjdetect(infer,imglist,imgdir):
     '''
       Description: Create xml file from detection result
@@ -249,17 +261,18 @@ def cm_plot(cases,conf,y_act, y_pred,imgdir,labels,plotflag = True):
     return {"accuracy":accuracy,"precision":precision,"recall":recall,"f1":f1}
 
 # main program
+
+
 def main_create_xml(imgdir,model = config["model"]["phone"]):
     '''
         Create xml by infering
     '''
-    # initializaition(model["detect"])
-    sys.path.append(config[model['detect']])
-    from Detectbase.PersonInfer import PersonInfer,Validation
 
-    infer = PersonInfer(model)
+
+    infer = checkmodel(model)
     _,imgfiles = getFiles(imgdir,ImgType)
     xmlfilefromobjdetect(infer,imgfiles,imgdir)
+
 
 
 def main_split2class(xmldir,rules):
@@ -356,11 +369,9 @@ def main_val_xml(imgdir,model = config["model"]["phone"]):
     '''
         Create xml by infering
     '''
-    sys.path.append(config[model['detect']])
-    from Detectbase.PersonInfer import Validation
     ptname = model['weights'].split('/')[-1] + "_" + str(model["imgsize"])
     save_dir = mkFolder(imgdir, "validation_"+ptname)
-    val = Validation(model)
+    val = checkmodel(model)
     val.run(imgdir,str(save_dir))
 
 
@@ -391,7 +402,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\02_Dataset\test/"
+        file_dir = r"C:\Users\Yoking\Desktop\LZW\temp/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)
@@ -418,9 +429,12 @@ if __name__ == "__main__":
         elif action == "smokexml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["smoke"])
-        elif action == "":#baosteel_surfacedefect_20cls
+        elif action == "baosteel_surfacedefect_20cls":#baosteel_surfacedefect_20cls
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["baosteel_surfacedefect_20cls"])
+        elif action == "baosteel_surfacedefect_20cls_Yolov7":  # baosteel_surfacedefect_20cls_Yolov7
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir, model=config["model"]["baosteel_surfacedefect_20cls_Yolov7"])
         elif action == "helmetxml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["helmet"])

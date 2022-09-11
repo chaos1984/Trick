@@ -788,16 +788,16 @@ def main_yolo_train_val_set(imgdir,task = 'test'):
     if mvfolder == "Y":
         trainFolder = mkFolder(imgdir,"train")
         valFolder = mkFolder(imgdir,"validation")
-        
+
     if task != 'test':
-        _, imgfiles = getFiles(imgdir, ImgType)
+        _, Labelfiles = getFiles(imgdir, LabelType)
         img_serverdir = input("Train and validation img in serverdir(data/.../):")
         # imgfiles_serve = [img_serverdir + i for i in imgfiles]
         samplerdir = mkFolder(imgdir, 'train_val')
         test_size = float(input("Input the ratio of val:"))
         
         
-        train_files, val_files = train_test_split(imgfiles, test_size=test_size, random_state=55)
+        train_files, val_files = train_test_split( Labelfiles, test_size=test_size, random_state=55)
         if mvfolder == "Y":
             for imgfile in train_files:
                 for file in findRelativeFiles(os.path.join(imgdir,imgfile)):
@@ -1166,7 +1166,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"C:\Users\Yoking\Desktop\bblw\test/"
+        file_dir = r"C:\Users\Yoking\Desktop\tt/"
         # pass
 
     try:
@@ -1233,7 +1233,7 @@ if __name__ == "__main__":
         elif action == "imgtovideo":
             print(main_split_images.__doc__)
             main_img_to_video(file_dir)
-        elif action == "":#paddingimage
+        elif action == "paddingimage":#paddingimage
             print(main_padding_image.__doc__)
             main_padding_image(file_dir)
     except Exception as e:
