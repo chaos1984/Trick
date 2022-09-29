@@ -33,7 +33,7 @@ def checkmodel(model,mode="detect"):
         from Detectbase.YoloV7Infer import ObjectDetect, Validation
     if mode == "detect":
         return ObjectDetect(model)
-    elif mode == "detect":
+    elif mode == "validation":
         return Validation(model)
 
 
@@ -371,7 +371,7 @@ def main_val_xml(imgdir,model = config["model"]["phone"]):
     '''
     ptname = model['weights'].split('/')[-1] + "_" + str(model["imgsize"])
     save_dir = mkFolder(imgdir, "validation_"+ptname)
-    val = checkmodel(model)
+    val = checkmodel(model,mode="validation")
     val.run(imgdir,str(save_dir))
 
 
@@ -402,7 +402,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"C:\Users\Yoking\Desktop\LZW\temp/"
+        file_dir = r"Z:\01_Input\Dataset\V7_1580\main defects\kd/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)
@@ -410,7 +410,7 @@ if __name__ == "__main__":
         elif action == "alarmxml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["alarm"])
-            main_create_xml(file_dir,model = config["model"]["person_alarm"])
+            # main_create_xml(file_dir,model = config["model"]["person_alarm"])
         elif action == "maskxml":
             print(main_create_xml.__doc__)
             main_create_xml(file_dir,model = config["model"]["mask"])

@@ -2,7 +2,7 @@ from utils_pre import *
 from utils_xml import *
 from utils_math import *
 
-
+import random
 
 
 def plotRectBox(img,object,label):
@@ -308,13 +308,13 @@ def pasteImg(bg_img,fg_img,pos,checkrange):
 def reflectimg(img,prob=1.0,fliptype = 'v'):
     if random.random() < prob:
         if fliptype == 'v':
-            return cv2.flip(img,0)
+            return cv2.flip(img,0),True
         if fliptype == 'h':
-            return cv2.flip(img,1)
+            return cv2.flip(img,1),True
         if fliptype == 'vh':
-            return cv2.flip(img,-1)
+            return cv2.flip(img,-1),True
     else:
-        return img
+        return img,False
 
 def rgb2gray(img,prob=1.0):
     if random.random() < prob:
@@ -356,7 +356,7 @@ def main_augmentImgs(imgdir,prob=[1,1,0,0]):
         files = findRelativeFiles(imgfilespath[id])
 
 
-        im = reflectimg(im,prob[0],fliptype=fliptype)
+        im,_= reflectimg(im,prob[0],fliptype=fliptype)
         im = hsvadjust1(im,prob[1])
         im = rotimg(im, 30, prob[2],scale=1)
         im = rgb2gray(im,prob[3])
@@ -367,6 +367,7 @@ def main_augmentImgs(imgdir,prob=[1,1,0,0]):
                 flipObjextxml(file,str(xmldir),fliptype)
 
         cv2.imwrite(imgdir.__str__(), im)
+        return
 
 if __name__ == "__main__":
     

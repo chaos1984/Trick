@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import ElementTree, Element
 from utils_xml import *
 from utils_math import *
-from utils_cv import cv_show
+from utils_cv import *
 from shutil import copyfile,move
 from sklearn.model_selection import train_test_split
 import random
@@ -358,20 +358,31 @@ def getImgMaxLongEdge(imgpath):
     img = cv2.imread(imgpath)
     (h,w,_) = img.shape
     if h>w:
-        return h,h//w,h%w,'w'
+        return h,w,h//w,h%w,'w'
     if h<=w:
-        return w,w//h,w%h,'v'
+        return w,h,w//h,w%h,'v'
 
-def createSquarImg(imgfiles):
-    maxedge, ratio, padding, direction = getImgMaxLongEdge(imgfiles[0])
+def createSquarImg(imgfiles,pob=1,flip = ['v','h','vh',"hv"]):
+    maxedge, minedge,ratio, padding, direction = getImgMaxLongEdge(imgfiles[0])
     num = len(imgfiles[1:])
+    frame_padding = (len(imgfiles[1:])-num) /2.
     if direction == "v":
         padding = np.ones([int(padding/(num)), maxedge, 3], dtype=np.uint8)*255
     else:
-        padding = np.ones([h, int(padding / (num)), 3], dtype=np.uint8) * 255
+        padding = np.ones([maxedge, int(padding / (num)), 3], dtype=np.uint8) * 255
     img = cv2.imread(imgfiles[0])
-    for img1 in imgfiles[1:]:
+    for id,img1 in enumerate(imgfiles[1:]):
+
         img1 = cv2.imread(img1)
+        if flip[id] == "o":
+            pass
+        elif flip[id] == "hv":
+            img1,_ = reflectimg(img1, prob=pob, fliptype='h')
+            img1,_ = reflectimg(img1, prob=pob, fliptype='v')
+        else:
+            img1,_ = reflectimg(img1, prob=pob, fliptype=flip[id])
+        # print(flip[id],img1.shape)
+
         if direction == "v":
             img = np.concatenate([img, padding], axis=0)
             img = np.concatenate([img, img1], axis=0)
@@ -379,6 +390,19 @@ def createSquarImg(imgfiles):
         else:
             img = np.concatenate([img, padding], axis=1)
             img = np.concatenate([img, img1], axis=1)
+
+    if frame_padding != 0:
+        if direction == "v":
+            padding = np.ones([minedge,maxedge,3], dtype=np.uint8) * 255
+            img = np.concatenate([img, padding], axis=0)
+            img = np.concatenate([padding,img], axis=0)
+        else:
+            padding = np.ones([maxedge,minedge,3], dtype=np.uint8) * 255
+            img = np.concatenate([img, padding], axis=1)
+            img = np.concatenate([padding, img], axis=1)
+    # for i in range(len(imgfiles[1:]) - num):
+    #     padding = np.ones(list(img1.shape), dtype = np.uint8) *255
+    #     img = np.concatenate([img, padding], axis=0)
 
     return img
 
@@ -908,10 +932,9 @@ def main_plot_bbox(imgdir):
     cls = input("Class you want to plot(e.g. person,mask): ")
     cls = cls.split(",")
     total = len(imgfiles)
-    try:
-        imgfiles.sort(key=lambda x: int(x.split('_')[0]))
-    except:
-        print("Sorted error!")
+
+    # imgfiles.sort(key=lambda x: int(x.split('_')[0]))
+
 
     for id,file in enumerate(imgfiles):
         print(file)
@@ -931,6 +954,32 @@ def main_plot_bbox(imgdir):
         vid_writer.write(img)
     vid_writer.release()
     return
+
+
+def main_create_square_image_samples_one_pic(filedir1):
+    '''
+        Create a square image with padding
+    '''
+    savedir = mkFolder(filedir1,'new_dataset')
+    imgfiles1,_ = getFiles(filedir1,ImgType)
+    total = len(imgfiles1)
+    for id,file in enumerate(imgfiles1):
+
+        print("%d/%d Current process file: %s" %(id+1,total,file))
+        imgfilescopy = imgfiles1.copy()
+        imgfilescopy.remove(file)
+        imgfilepath = os.path.join(savedir, os.path.split(file)[-1][:-4] + '_square' + os.path.split(file)[-1][-4:])
+        edge,minedge,fignum,padding,direction = getImgMaxLongEdge(file)
+        concimgs = [file]
+        concimgs.extend([file for i in range(fignum-1)])
+        img = createSquarImg(concimgs)
+        cv2.imwrite(imgfilepath,img)
+        try:
+            xmlfile = [file.replace(file[-4:],".xml") for file in concimgs]
+            xmlfile = combineXMLinDirection(xmlfile,edge,fignum,padding,direction)
+            xmlfile.write(imgfilepath.replace(file[-4:],'.xml'))
+        except:
+            continue
 
 
 def main_create_square_image_samples(filedir1):
@@ -1049,10 +1098,15 @@ def main_movobject(xmldir):
         Move file included object to object dir  
     '''
     xmlfiles,_ = getFiles(xmldir,LabelType)
-    cls = input("Class name(only one label,e.g. person):")
-    numclass = int(input("Number threshold of labels(def. 99):"))
+    cls = input("Class name(label list,e.g. [person,mask]):")
+    try:
+        numclass = int(input("Number threshold of labels(def. 99):"))
+    except:
+        print('Default number 99 will be used!')
+        numclass = 99
     cls = cls.split(',')
     for i in cls:
+        xmlfiles,_ = getFiles(xmldir,LabelType)
         savedir = mkFolder(xmldir,i)
         movObjectxml(xmlfiles,i,savedir,numclass)
 
@@ -1133,7 +1187,7 @@ def main_img_to_video(imgdir):
         if id == 0:
             path = os.path.join(savedir,'video.mp4')
             print(path)
-            vid_writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'acv1'), 1, (int(w), int(h)))
+            vid_writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'XVID'), 1, (int(w), int(h)))
         vid_writer.write(img)
     vid_writer.release()
 
@@ -1155,8 +1209,20 @@ def main_padding_image(imgdir):
             border = (h - w) // 2
             constant = cv2.copyMakeBorder(img, 0, 0, border, border, cv2.BORDER_CONSTANT, value=WHITE)
 
-        new_file_path =  os.path.join(savedir,f'{filename[:-4]}' + '_padding.tif')
+        new_file_path = os.path.join(savedir, f'{filename[:-4]}' + '_padding' + f'{filename[-4:]}')
         cv2.imwrite(new_file_path, constant)
+
+def main_resize_image(imgdir):
+    " Resize images "
+    savedir = mkFolder(imgdir,"Image_resize")
+    imgfull,_ = getFiles(imgdir,ImgType)
+    for imgdir in imgfull:
+        img = cv2.imread(imgdir)
+        filename = os.path.split(imgdir)[-1]
+        img = cv2.resize(img, (780,144), interpolation=cv2.INTER_CUBIC)
+
+        new_file_path =  os.path.join(savedir,f'{filename[:-4]}' + '_resize'  +  f'{filename[-4:]}')
+        cv2.imwrite(new_file_path, img)
 
 if __name__ == "__main__":
     try:
@@ -1166,7 +1232,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"C:\Users\Yoking\Desktop\tt/"
+        file_dir = r"Y:\星云智联数据\03_Labelwork\20220526\mask\yl1/"
         # pass
 
     try:
@@ -1197,9 +1263,9 @@ if __name__ == "__main__":
         elif action == "checklabelxml":#checklabelxml
             print(main_check_label_xml.__doc__)
             main_check_label_xml(file_dir)
-        elif action == "squareimg":
+        elif action == "squareimg":#squareimg
             print(main_create_square_image_samples.__doc__)
-            main_create_square_image_samples(file_dir)
+            main_create_square_image_samples_one_pic(file_dir)
         elif action == "plotinferres":
             print(main_plot_infer_res.__doc__)
             main_plot_infer_res(file_dir)
@@ -1236,6 +1302,9 @@ if __name__ == "__main__":
         elif action == "paddingimage":#paddingimage
             print(main_padding_image.__doc__)
             main_padding_image(file_dir)
+        elif action == "resizeimage":#resizeimage
+            print(main_resize_image.__doc__)
+            main_resize_image(file_dir)
     except Exception as e:
         print(e)
         print(traceback.format_exc())

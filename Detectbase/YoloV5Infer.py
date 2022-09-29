@@ -56,16 +56,20 @@ class ObjectDetect(Infer):
         self.classes = None  # filter by class: --class 0, or --class 0 2 3
         self.agnostic_nms = False  # class-agnostic NMS
         # self.line_thickness = 3  # bounding box thickness (pixels)
-        self.half = False  # use FP16 half-precision inference
+        self.half = True
+        # use FP16 half-precision inference
         self.dnn = False
         self.model = DetectMultiBackend(self.weights, device=self.device, dnn=self.dnn, data=self.data)
         self.stride, self.names, pt = self.model.stride, self.model.names, self.model.pt
-        self.model.model.half() if self.half else self.model.model.float()
+        try:
+            self.model.model.half() if self.half else self.model.model.float()
+        except:
+            pass
     @torch.no_grad()
     def run(self, img,res={}):
         # img = cv2.imread(img)
         img0 = img.copy()
-        img = letterbox(img, self.imgsize, stride=self.stride, auto=True)[0]
+        img = letterbox(img, self.imgsize, stride=self.stride, auto=True)[0] #True
         # cv2.imwrite('../dataset/test/11.jpg',img)
         img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
         # cv2.imwrite('../dataset/test/12.jpg', img)

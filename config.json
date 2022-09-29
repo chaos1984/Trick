@@ -55,13 +55,13 @@
 		},
 		"alarm": {
 			"detect":"yolov5",
-			"weights": "D:/05_Trick/modellib/alarm/alarm_best_05_23.pt",
+			"weights": "D:/05_Trick/modellib/alarm/alarm_best_0523.pt",
 			"classes": ["alarm","noalarm"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
 			"iou_thres": 0.45,
 			"imgsize":640,
-			"device": "cpu"
+			"device": "GPU"
 		},
 		"alarm4cls": {
 			"detect":"yolov5",
@@ -168,7 +168,7 @@
       "weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_0822.pt",
       "classes": [ "bbqp", "bdxtp", "bs", "bx", "cs", "dr", "hb", "hx", "jqtw", "jz", "kd", "qp", "tph", "yh", "zh", "zp", "by", "tph1" ],
       "save_dir": "./",
-      "conf_thres": 0.1,
+      "conf_thres": 0.4,
       "iou_thres": 0.45,
       "imgsize": 768,
       "device": "GPU"

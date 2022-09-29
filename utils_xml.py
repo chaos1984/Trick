@@ -300,7 +300,7 @@ def getObjectxml(xmlfile,classes):
                         box.append(int(child.text))
                     else:
                         box.append(float(child.text))
-                if len(objectlist) < 6:
+                if len(box) < 6:
                     box.append(0) #confidence
                 objectlist.append(box)
     else:
