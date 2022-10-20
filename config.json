@@ -164,11 +164,11 @@
 			"device": "cpu"
 		},
     "baosteel_surfacedefect_20cls": {
-      "detect": "yolov5",
-      "weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_0822.pt",
-      "classes": [ "bbqp", "bdxtp", "bs", "bx", "cs", "dr", "hb", "hx", "jqtw", "jz", "kd", "qp", "tph", "yh", "zh", "zp", "by", "tph1" ],
+      "detect": "yolov5-6.2",
+      "weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_0930.pt",
+      "classes": [ "qp_bbqp_sj", "bdxtp", "bs", "bx", "cs", "dr", "hb", "hx", "jqtw", "jz", "kd", "tph", "yh", "zh", "zp", "by" ],
       "save_dir": "./",
-      "conf_thres": 0.4,
+      "conf_thres": 0.25,
       "iou_thres": 0.45,
       "imgsize": 768,
       "device": "GPU"

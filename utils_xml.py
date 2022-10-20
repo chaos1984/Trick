@@ -14,27 +14,52 @@ def create_node(tag, content=''):
     element.tail = '\n'
     return element
 
-def combineXMLinDirection(xmlfilelist, edgelen,fignum,padding,direction):
+def combineXMLinDirection(xmlfilelist, edgelen,fignum,padding,direction,flip):
     length = (edgelen - padding) / fignum
     offest = length + padding / (fignum - 1)
+
     if direction == 'v':
-        return combineXML(xmlfilelist, 0, offest)
+        return combineXML(xmlfilelist,flip , 0, offest)
     else:
-        return combineXML(xmlfilelist, offest, 0)
+        return combineXML(xmlfilelist,flip , offest, 0)
     
-def combineXML(xmlfilelist,xoffset=0,yoffset=0):
+def combineXML(xmlfilelist,flip,xoffset=0,yoffset=0):
     tree = ET.parse(xmlfilelist[0])
     root = tree.getroot()
+    root[4][0].text = root[4][1].text = str(max(int(root[4][0].text) , int(root[4][1].text)))
+    # size = root.findall("size")
+
     for i,xmlfile in enumerate(xmlfilelist[1:]):
-        objectlist,_,_ = getObjectxml(xmlfile,classes='all')
+        objectlist,imgw,imgh = getObjectxml(xmlfile,classes='all')
+        xc = imgw/2;yc = imgh/2
+
         for object in objectlist:
             obj = Element("object")
             obj.append(create_node("name", object[0]))
             obj.append(create_node("bndbox", ''))
-            obj[1].append(create_node("xmin", str(object[1]+xoffset*(i+1))))
-            obj[1].append(create_node("ymin", str(object[2]+yoffset*(i+1))))
-            obj[1].append(create_node("xmax", str(object[3]+xoffset*(i+1))))
-            obj[1].append(create_node("ymax", str(object[4]+yoffset*(i+1))))
+            if flip[i] == "o":
+                xmin = object[1];ymin = object[2];xmax = object[3] ;ymax = object[4];
+            elif flip[i] == "vh":
+                xmax = xc + abs(xc - object[1]) if xc > object[1] else xc - abs(xc - object[1]);
+                ymax = yc + abs(yc - object[2]) if yc > object[2] else yc - abs(yc - object[2]);
+                xmin = xc + abs(xc - object[3]) if xc > object[3] else xc - abs(xc - object[3]);
+                ymin = yc + abs(yc - object[4]) if yc > object[4] else yc - abs(yc - object[4]);
+            elif flip[i] == "v":
+                xmin = object[1];
+                ymin = imgh - object[4];
+                xmax = object[3];
+                ymax = imgh - object[2];
+            elif flip[i] == "h":
+                xmin = imgw - object[3];
+                ymin = object[2];
+                xmax = imgw - object[1];
+                ymax = object[4];
+            if xmax < xmin or ymax < ymin:
+                print(f"error:{xmlfile}，{flip[i]},{object[0]}")
+            obj[1].append(create_node("xmin", str(xmin+xoffset*(i+1))))
+            obj[1].append(create_node("ymin", str(ymin+yoffset*(i+1))))
+            obj[1].append(create_node("xmax", str(xmax+xoffset*(i+1))))
+            obj[1].append(create_node("ymax", str(ymax+yoffset*(i+1))))
             root.append(obj)
     return tree
 
@@ -73,14 +98,18 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
         root = tree.getroot()
     for id,item in enumerate(res["object"]):
         # xmin,xmax,ymin,ymax = xywh2xyxy(*item)
+        if type(item[0]) == str:
+            temp = item[0]
+            item.pop(0)
+            item.append(temp)
         try:
             xmin, ymin, xmax, ymax,confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), float(item[4])
         except:
             xmin, ymin, xmax, ymax, confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), 0
         obj = create_node("object","")
-        if cls != []:
+        if cls != []: #if label is num check dictionary
             obj.append(create_node("name",cls[int(item[-1])]))
-        else:
+        else:   #if label is str, no check
             obj.append(create_node("name", item[-1]))
         obj.append(create_node("pose",'Unspecified'))
         obj.append(create_node("truncated",'0'))
@@ -277,6 +306,8 @@ def getObjectxml(xmlfile,classes):
         classes[list]: Class name
     Return:
         obj[list]: obeject list,[['person', 592, 657, 726, 1077],['person', 592, 657, 726, 1077]]
+        w:img width
+        h:img height
     Usage:
         bboxlist = getObjectxml(xmlfile,classes)
     '''

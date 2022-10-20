@@ -13,9 +13,6 @@ import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize']=(10, 10)
 import traceback
 
-
-
-
 ImgType = ['*.jpg','*.jpeg','*.tif','*.png']
 VideoType = ['*.avi','*.mp4']
 pyscriptpath = os.path.split(os.path.realpath(__file__))[0]
@@ -31,6 +28,8 @@ def checkmodel(model,mode="detect"):
         from Detectbase.YoloV5Infer import ObjectDetect, Validation
     elif model['detect'] == "yolov7":
         from Detectbase.YoloV7Infer import ObjectDetect, Validation
+    elif model['detect'] == "yolov5-6.2":
+        from Detectbase.YoloV5Infer import ObjectDetect, Validation
     if mode == "detect":
         return ObjectDetect(model)
     elif mode == "validation":
@@ -402,7 +401,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"Z:\01_Input\Dataset\V7_1580\main defects\kd/"
+        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\03_\temp/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)

@@ -20,6 +20,7 @@ import random
 import traceback
 import matplotlib.pyplot as plt
 import pandas as pd
+from tqdm import tqdm
 
 ImgType = ['*.jpg','*.jpeg','*.tif','*.png','*.bmp']
 VideoType = ['*.avi','*.mp4','hav','.h5']
@@ -45,6 +46,30 @@ def window_xml(xmlpath,bboxes,window,cls=["person"]):
                 new_bbox.append(temp)
     xmldic = {"size":{"w":str(w),"h":str(h),"c":str(c)},"object":new_bbox}
     createObjxml(xmldic,xmlpath,cls)
+
+def scaleBoundingBox(data,oimg,dimg):
+    '''
+    Description: Scale the bbox size from origin box width and height to destination。
+    Author: Yujin Wang
+    Date: 2022-10-10
+    Args:
+        data[list]:bbox list
+        oimg[tuple]:Origin image shape
+        dimg[tuple]:destination image shape
+    Return:
+        data[list]:bbox list
+    Usage:
+    '''
+    ow,oh = oimg
+    w,h = dimg
+    w_scale = float(w / ow);
+    h_scale = float(h / oh)
+    x1,y1,x2,y2 = float(data[1]),float(data[2]),float(data[3]),float(data[4])
+    data[1] = round(x1 * w_scale);
+    data[2] = round(y1 * h_scale) ;
+    data[3] = round(x2 * w_scale) ;
+    data[4] = round(y2 * h_scale)
+    return data
 
 def findRelativeFiles(filepath):
     '''
@@ -295,8 +320,6 @@ def VOC2Yolo(xmlfiles,classes='all'):
                 print("No object found in xml, file:%s" %(file))
         id += 1
         out_file.close()
-        
-
 
 def sampleset_paddle(filelist,dir,fn = "train.txt"):
     '''
@@ -354,6 +377,19 @@ def savecopy(filelist,file2dir):
         index += 1
 
 def getImgMaxLongEdge(imgpath):
+    '''
+    Description: Get image shape information.
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        imgpath[str]:image path
+    Return:
+        h,w,h//w,h%w,'w'[tupel]:
+    Usage:
+        filedir = r'D:\01_Project\01_Fangang\01_Ref_211232\1\images/'
+        xmlfiles = glob.glob(filedir + '*.xml')
+        savecopy(xmlfiles,filedir+"copy/")
+    '''
 
     img = cv2.imread(imgpath)
     (h,w,_) = img.shape
@@ -362,17 +398,31 @@ def getImgMaxLongEdge(imgpath):
     if h<=w:
         return w,h,w//h,w%h,'v'
 
-def createSquarImg(imgfiles,pob=1,flip = ['v','h','vh',"hv"]):
+def createSquarImg(imgfiles,pob=1,flip = ['v','h','vh',"o"]):
+    '''
+    Description: Creat square image
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        imgfiles[list]:images' path list
+        pob[float]:probability
+        flip[list]:flip style list
+    Return:
+        img[img]
+    Usage:
+
+    '''
     maxedge, minedge,ratio, padding, direction = getImgMaxLongEdge(imgfiles[0])
     num = len(imgfiles[1:])
     frame_padding = (len(imgfiles[1:])-num) /2.
     if direction == "v":
-        padding = np.ones([int(padding/(num)), maxedge, 3], dtype=np.uint8)*255
+        padding = np.ones([int(padding/(num)), maxedge, 3], dtype=np.uint8)
     else:
-        padding = np.ones([maxedge, int(padding / (num)), 3], dtype=np.uint8) * 255
+        padding = np.ones([maxedge, int(padding / (num)), 3], dtype=np.uint8) 
+    padding[:,:,0] = 255
     img = cv2.imread(imgfiles[0])
-    for id,img1 in enumerate(imgfiles[1:]):
 
+    for id,img1 in enumerate(imgfiles[1:]):
         img1 = cv2.imread(img1)
         if flip[id] == "o":
             pass
@@ -400,13 +450,21 @@ def createSquarImg(imgfiles,pob=1,flip = ['v','h','vh',"hv"]):
             padding = np.ones([maxedge,minedge,3], dtype=np.uint8) * 255
             img = np.concatenate([img, padding], axis=1)
             img = np.concatenate([padding, img], axis=1)
-    # for i in range(len(imgfiles[1:]) - num):
-    #     padding = np.ones(list(img1.shape), dtype = np.uint8) *255
-    #     img = np.concatenate([img, padding], axis=0)
 
     return img
 
 def paddingSquare(img):
+    '''
+    Description: add padding in image to a square image
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        img[image]
+    Return:
+        img[img]
+    Usage:
+
+    '''
     height, width, _ = img.shape
     if height > width:
         padding = np.ones([height, int((height - width) / 2), 3], dtype=np.uint8) * 0
@@ -642,7 +700,6 @@ def plotFigArray(imglist:list,imgshape=(0,0)):
         figures
     Usage:
     '''
-    tt =imglist[0]
     height, width, _ = imglist[0].shape
     num = len(imglist)
     row,col = calcImgArray(width,height,num)
@@ -663,6 +720,21 @@ def plotFigArray(imglist:list,imgshape=(0,0)):
     return canvas
 
 def Video2Video(videofile,savedir,interval,offset,scale):
+    '''
+    Description: Reduce frame numbers of video or reshape video size
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        videofile[str]:video path
+        savedir[str]: new video path
+        interval[int]: video interval number
+        offset[int]: number of frames
+        scale[float]:scale of video shape
+    Return:
+        NAN
+    Usage:
+
+    '''
     print(videofile)
     cap = cv2.VideoCapture()
     cap.open(videofile)
@@ -893,34 +965,6 @@ def main_crop_object_img(imgdir):
             print(traceback.format_exc())
         id += 1
 
-#
-# def main_plot_bbox(imgdir):
-#     '''
-#         Plot bbox in img
-#     '''
-#     savedir = mkFolder(imgdir,"plotbbox")
-#     imgfull,imgfiles = getFiles(imgdir,ImgType)
-#     cls = input("Class you want to plot(e.g. person,mask): ")
-#     cls = cls.split(",")
-#     total = len(imgfiles)
-#     imgfiles.sort(key=lambda x: int(x[:-4]))
-#     for id in range(len(imgfiles)):
-#         img
-#         bbox,_,_ = getObjectxml(imgfull[id].replace(file[-4:],".xml"),cls)
-#         img = cv2.imread(imgdir + file)
-#         h,w,  _ = img.shape
-#         print(f'w:{w} h:{h}')
-#         img = plotRectBox(img,bbox,names=cls)
-#         print("%d/%d Currrent image: %s" %(id+1,total,file))
-#         imgpath = savedir / file
-#         cv2.imwrite(str(imgpath),img)
-#         if id == 0:
-#             path = os.path.join(savedir,'video.mp4')
-#             print(path)
-#             vid_writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'acv1'), 25, (int(w), int(h)))
-#         vid_writer.write(img)
-#     vid_writer.release()
-#     return
 
 
 def main_plot_bbox(imgdir):
@@ -972,14 +1016,14 @@ def main_create_square_image_samples_one_pic(filedir1):
         edge,minedge,fignum,padding,direction = getImgMaxLongEdge(file)
         concimgs = [file]
         concimgs.extend([file for i in range(fignum-1)])
-        img = createSquarImg(concimgs)
+        flip = ['v', 'h', 'vh', "o"]
+        img = createSquarImg(concimgs,flip = flip)
         cv2.imwrite(imgfilepath,img)
-        try:
-            xmlfile = [file.replace(file[-4:],".xml") for file in concimgs]
-            xmlfile = combineXMLinDirection(xmlfile,edge,fignum,padding,direction)
-            xmlfile.write(imgfilepath.replace(file[-4:],'.xml'))
-        except:
-            continue
+
+        xmlfile = [file.replace(file[-4:],".xml") for file in concimgs]
+        xmlfile = combineXMLinDirection(xmlfile,edge,fignum,padding,direction,flip = flip)
+        xmlfile.write(imgfilepath.replace(file[-4:],'.xml'))
+
 
 
 def main_create_square_image_samples(filedir1):
@@ -1128,25 +1172,27 @@ def main_remunusedfile(xmldir):
 def main_imgchangetojpg(imgdir):
     " Change images' format to jpg "
     imgsdir,_ = getFiles(imgdir,ImgType)
-    for img in imgsdir:
+    filetype = input("File type('.tif'):")
+    for img in tqdm(imgsdir):
          im = cv2.imread(img) 
-         print(img.split('.')[0]+'.jpg')
-         cv2.imwrite(img.split('.')[0]+'.jpg',im)
+
+         cv2.imwrite(img.split('.')[0]+filetype,im)
 
 def main_split_images(imgdir):
     " Split image to several jpg with w and h user defined or random "
     w = int(input("Crop image's width:"))
     h = int(input("Crop image's height:"))
-    if  input("Randomflag('No'):") == "No":
+    r = input("Randomflag('Default:N'):")
+    if r == "N" or  r == "" :
         randomflag = False
     else:
         randomflag = True
-        random_num = input("No. of images:")
+        random_num = int(input("No. of images:"))
     # w= 780;h =144; randomflag = True;random_num=2
     savedir = mkFolder(imgdir,"Crop_images")
     imgfiles, _ = getFiles(imgdir, ImgType)
 
-    for imgfile in imgfiles:
+    for imgfile in tqdm(imgfiles):
         im = cv2.imread(imgfile)
         im_h,im_w,im_c = im.shape
         if im_h >= h and im_w >= w:
@@ -1156,22 +1202,27 @@ def main_split_images(imgdir):
                     w0 = random.randrange(0,im_w-w)
                     crop_img = im[h0:h0 + h, w0:w0 + w]
                     filename = os.path.split(imgfile)[-1]
-                    saveimg = os.path.join(savedir, filename[:-4] + '_' + str(i) + '.jpg')
+                    saveimg = os.path.join(savedir, filename[:-4] + '_' + str(i) + imgfile[-4:])
                     cv2.imwrite(saveimg, crop_img)
             else:
                 index = 0
                 for i in range(im_w//w):
                     for j in range(im_h // h):
-                        h0 = 0+i*h;w0 = 0+j*w
+                        h0 = 0+j*h if j*h<im_h else 0 ;w0 = 0+i*w if i*w<im_w else 0
                         crop_img = im[h0:h0+h, w0:w0+w]
                         index += 1
                         filename = os.path.split(imgfile)[-1]
-                        saveimg = os.path.join(savedir, filename[:-4] + '_' + str(index) + '.jpg')
+                        saveimg = os.path.join(savedir, filename[:-4] + '_' + str(index) + imgfile[-4:])
                         cv2.imwrite(saveimg, crop_img)
-                if  im_w%w != 0 and im_h%h != 0:
+                # if im_w % w != 0:
+                #     index += 1
+                #     crop_img = im[im_h-h:im_h, im_w-w:im_w]
+                #     saveimg = os.path.join(savedir, filename[:-4] + '_' + str(index) + imgfile[-4:])
+                #     cv2.imwrite(saveimg, crop_img)
+                if  im_w%w != 0 or im_h%h != 0:
                     index += 1
                     crop_img = im[im_h-h:im_h, im_w-w:im_w]
-                    saveimg = os.path.join(savedir, filename[:-4] + '_' + str(index) + '.jpg')
+                    saveimg = os.path.join(savedir, filename[:-4] + '_' + str(index)  + imgfile[-4:])
                     cv2.imwrite(saveimg, crop_img)
         else:
             print("Image size user defined dosen't meet image shape.")
@@ -1212,17 +1263,82 @@ def main_padding_image(imgdir):
         new_file_path = os.path.join(savedir, f'{filename[:-4]}' + '_padding' + f'{filename[-4:]}')
         cv2.imwrite(new_file_path, constant)
 
+
+
 def main_resize_image(imgdir):
     " Resize images "
     savedir = mkFolder(imgdir,"Image_resize")
     imgfull,_ = getFiles(imgdir,ImgType)
-    for imgdir in imgfull:
+    w = int(input("Image resize width:"))
+    h = int(input("Image resize height:"))
+    for imgdir in tqdm(imgfull):
         img = cv2.imread(imgdir)
         filename = os.path.split(imgdir)[-1]
-        img = cv2.resize(img, (780,144), interpolation=cv2.INTER_CUBIC)
-
-        new_file_path =  os.path.join(savedir,f'{filename[:-4]}' + '_resize'  +  f'{filename[-4:]}')
+        (imgh,imgw,_) = img.shape
+        if h ==  imgh and w == imgw:
+            continue
+        print(f"\nResized image:{imgdir}\n")
+        img = cv2.resize(img, (w,h), interpolation=cv2.INTER_CUBIC)
+        new_file_path =  os.path.join(savedir,f'{filename[:-4]}' +  f'{filename[-4:]}')
         cv2.imwrite(new_file_path, img)
+
+        xmlfile = imgdir[:-4]+'.xml'
+        if os.path.exists(xmlfile):
+            bboxlist,ow,oh = getObjectxml(xmlfile,classes='all')
+            dbboxlist = []
+            for data in bboxlist:
+                data = scaleBoundingBox(data, (ow,oh), (w,h))
+                dbboxlist.append(data)
+            xmldic = {"size": {"w": str(w), "h": str(h), "c": '3'}, "object": dbboxlist}
+            createObjxml(xmldic, new_file_path[:-4]+'.xml', cls=[])
+
+
+def main_rename_file_based_on_objection(filedir):
+    ''' Reanme file with objects' name'''
+    savedir = mkFolder(filedir,"RenFile")
+    imgfilefull,_ = getFiles(filedir,ImgType)
+    for imgfile in tqdm(imgfilefull):
+        xmlfile = imgfile[:-4] + '.xml'
+        objlist,_,_ = getObjectxml(xmlfile,classes='all')
+        objnamelist = []
+        for obj in objlist:
+            if obj[0] not in objnamelist:
+                objnamelist.append(obj[0])
+        xmlfile = Path(xmlfile)
+        imgfile = Path(imgfile)
+        if "__o" not in  xmlfile.name:
+            newxmlfilename = os.path.join( savedir,  '_'.join(objnamelist) + '__o' + xmlfile.name)
+            newimgfilename = os.path.join( savedir,  '_'.join(objnamelist) + '__o' + imgfile.name)
+        else:
+            start = str(xmlfile.name).find('__o')
+            xmlfilenewname = xmlfile.name[start:]
+            imgfilenewname = imgfile.name[start:]
+            newxmlfilename = os.path.join( savedir,  '_'.join(objnamelist) +  xmlfilenewname)
+            newimgfilename = os.path.join( savedir,  '_'.join(objnamelist) +  imgfilenewname)
+        copyfile(xmlfile,newxmlfilename )
+        copyfile(imgfile, newimgfilename )
+
+def main_split_dataset(filedir):
+    ''' Devide dataset to several small datasets'''
+    num = int(input(('Please input the number of Dataset will be splited:')))
+    filelist,_ = getFiles(filedir,ImgType)
+    num_file = len(filelist)
+    condition = num_file//num
+    for i in range(num):
+        savedir = mkFolder(filedir, str(i))
+        file_num = 0
+        while file_num != condition:
+            file = filelist.pop()
+            move(file,savedir)
+            for cpfile in findRelativeFiles(file):
+                move(cpfile, savedir)
+            file_num += 1
+            if len(filelist) == 0:
+                break
+
+
+    imgfilefull, _ = getFiles(filedir, ImgType)
+
 
 if __name__ == "__main__":
     try:
@@ -1232,7 +1348,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"Y:\星云智联数据\03_Labelwork\20220526\mask\yl1/"
+        file_dir = r"D:\temp1\test/"
         # pass
 
     try:
@@ -1248,9 +1364,9 @@ if __name__ == "__main__":
         elif action == "chgObjectxml":
             print(main_change_cls_name.__doc__)
             main_change_cls_name(file_dir)
-        elif action == "changefilename":
-            print(main_change_file_name.__doc__)
-            main_change_file_name(file_dir)
+        elif action == "changefilename":#changefilename
+            print(main_rename_file_based_on_objection.__doc__)
+            main_rename_file_based_on_objection(file_dir)
         elif action == 'splitYoloTrainVal':#splitYoloTrainVal
             print(main_yolo_train_val_set.__doc__)
             main_yolo_train_val_set(file_dir,task='trainval')
@@ -1263,7 +1379,7 @@ if __name__ == "__main__":
         elif action == "checklabelxml":#checklabelxml
             print(main_check_label_xml.__doc__)
             main_check_label_xml(file_dir)
-        elif action == "squareimg":#squareimg
+        elif action == "":#squareimg
             print(main_create_square_image_samples.__doc__)
             main_create_square_image_samples_one_pic(file_dir)
         elif action == "plotinferres":
@@ -1293,18 +1409,21 @@ if __name__ == "__main__":
         elif action == "imgchangetojpg":
             print(main_imgchangetojpg.__doc__)
             main_imgchangetojpg(file_dir)
-        elif action == "splitimages":#
+        elif action == "splitimages":#splitimages
             print(main_split_images.__doc__)
             main_split_images(file_dir)
         elif action == "imgtovideo":
-            print(main_split_images.__doc__)
+            print(main_img_to_video.__doc__)
             main_img_to_video(file_dir)
-        elif action == "paddingimage":#paddingimage
+        elif action == "paimaddingimage":#paimaddingimage
             print(main_padding_image.__doc__)
             main_padding_image(file_dir)
         elif action == "resizeimage":#resizeimage
             print(main_resize_image.__doc__)
             main_resize_image(file_dir)
+        elif action == "":#splitdataset
+            print(main_split_dataset.__doc__)
+            main_split_dataset(file_dir)
     except Exception as e:
         print(e)
         print(traceback.format_exc())

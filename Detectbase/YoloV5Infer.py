@@ -70,9 +70,7 @@ class ObjectDetect(Infer):
         # img = cv2.imread(img)
         img0 = img.copy()
         img = letterbox(img, self.imgsize, stride=self.stride, auto=True)[0] #True
-        # cv2.imwrite('../dataset/test/11.jpg',img)
         img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
-        # cv2.imwrite('../dataset/test/12.jpg', img)
         img = np.ascontiguousarray(img)
         im = torch.from_numpy(img).to(self.device)
         im = im.half() if self.half else im.float()  # uint8 to fp16/32
