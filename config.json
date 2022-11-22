@@ -93,15 +93,15 @@
 			"imgsize":640,
 			"device": "cpu"
 		},
-		"steel": {
+		"steel_1cls": {
 			"detect":"yolov5",
-			"weights": "D:/05_Trick/modellib/steel/best.pt",
-			"classes": ["1","2","3","4"],
+			"weights": "D:/05_Trick/modellib/baosteel_surfacedefect_1cls_Yolo/best.pt",
+			"classes": ["hs"],
 			"save_dir":"./",
-			"conf_thres": 0.2,
+			"conf_thres": 0.4,
 			"iou_thres": 0.45,
-			"imgsize":640,
-			"device": "cpu"
+			"imgsize":780,
+			"device": "GPU"
 		},
 		"safetybelt": {
 			"detect":"yolov5",
@@ -165,8 +165,8 @@
 		},
     "baosteel_surfacedefect_20cls": {
       "detect": "yolov5-6.2",
-      "weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_0930.pt",
-      "classes": [ "qp_bbqp_sj", "bdxtp", "bs", "bx", "cs", "dr", "hb", "hx", "jqtw", "jz", "kd", "tph", "yh", "zh", "zp", "by" ],
+      "weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_1031_2.pt",
+      "classes": [ "qp_bbqp_sj", "bdxtp", "bs", "bx", "cs", "dr", "hb", "hx", "jqtw", "jz", "kd", "tph", "yh", "by" ],
       "save_dir": "./",
       "conf_thres": 0.25,
       "iou_thres": 0.45,
@@ -184,7 +184,7 @@
 			"device": "GPU"
 		},
 		"baosteel_surfacedefect_1cls": {
-			"detect":"yolov5-6.2",
+			"detect":"yolov5",
 			"weights": "D:/05_Trick/modellib/baosteel_surfacedefect_2cls/best.pt",
 			"classes": ["item"],
 			"save_dir":"./",

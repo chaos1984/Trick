@@ -535,7 +535,7 @@ def saveCropImgcopy(imgdir,imgfile,clsname,scale=0.1,square = True):
             cv2.imwrite(saveimg,crop_img)
 
 
-def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True):
+def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True,resize_img =0):
     '''
     Description: Crop image accoding to the bounding box from xml, and save the cropped image
     Author: Yujin Wang
@@ -613,11 +613,14 @@ def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True):
                     x1 = object[0][0] + innerbox[1]-objectbox[1]; y1 = object[0][1] + innerbox[2]- objectbox[2] ;
                     object.append([x1, y1, x1 + innerbox[3] - innerbox[1],y1 + innerbox[4] - innerbox[2], confidence ,classes.index(innerbox[0])])
 
-            xmldic = {"size": {"w": str(w), "h": str(h), "c": str(c)},"object": object}
-            saveimg = os.path.join(savedir, imgfile[:-4] + '_' + clsname + '_' + str(id) + '.jpg')
-            # h,w,c = crop_img.shape
 
-            createObjxml(xmldic, saveimg, cls=classes)
+            if resize_img !=0 :
+                crop_img = cv2.resize(crop_img,(resize_img ,resize_img ))
+            else:
+                xmldic = {"size": {"w": str(w), "h": str(h), "c": str(c)},"object": object}
+                createObjxml(xmldic, saveimg, cls=classes)
+
+            saveimg = os.path.join(savedir, imgfile[:-4] + '_' + clsname + '_' + str(id) + '.jpg')
             cv2.imwrite(saveimg, crop_img)
 
 
@@ -886,14 +889,14 @@ def main_yolo_train_val_set(imgdir,task = 'test'):
         valFolder = mkFolder(imgdir,"validation")
 
     if task != 'test':
-        _, Labelfiles = getFiles(imgdir, LabelType)
+        _, Imagefiles = getFiles(imgdir, ImgType)
         img_serverdir = input("Train and validation img in serverdir(data/.../):")
         # imgfiles_serve = [img_serverdir + i for i in imgfiles]
         samplerdir = mkFolder(imgdir, 'train_val')
         test_size = float(input("Input the ratio of val:"))
         
         
-        train_files, val_files = train_test_split( Labelfiles, test_size=test_size, random_state=55)
+        train_files, val_files = train_test_split( Imagefiles, test_size=test_size, random_state=55)
         if mvfolder == "Y":
             for imgfile in train_files:
                 for file in findRelativeFiles(os.path.join(imgdir,imgfile)):
@@ -940,6 +943,25 @@ def main_imagesize_filter(imgdir):
             move(file,remdir)
 
 
+# def expandcropimg(image, rect, expand_ratio=1):
+#     '''
+#     按照一定比例(expand_ratio)将rect放大后进行裁剪
+#     Author:Zhangzhe
+#     '''
+#     imgh, imgw, c = image.shape
+#     xmin, ymin, xmax, ymax = [int(x) for x in rect]
+#     org_rect = [xmin, ymin, xmax, ymax]
+#     h_half = (ymax - ymin) * (1 + expand_ratio) / 2.
+#     w_half = (xmax - xmin) * (1 + expand_ratio) / 2.
+#     # if h_half > w_half * 4 / 3:
+#     #     w_half = h_half * 0.75
+#     center = [(ymin + ymax) / 2., (xmin + xmax) / 2.]
+#     ymin = max(0, int(center[0] - h_half))
+#     ymax = min(imgh - 1, int(center[0] + h_half))
+#     xmin = max(0, int(center[1] - w_half))
+#     xmax = min(imgw - 1, int(center[1] + w_half))
+#     return image[ymin:ymax, xmin:xmax, :], [xmin, ymin, xmax, ymax], org_rect
+
 def main_crop_object_img(imgdir):
     '''
         Crop objet image(include inner objects in box)
@@ -948,6 +970,7 @@ def main_crop_object_img(imgdir):
     scale = float(input("Input scale factor(max(h,w)):"))
 
     square = True if input("Crop image with padding(Y/N):") == "Y" else False
+    resize_img = int(input("Resize(0:no):")) 
 
     clsname = clsname.split(',')
     _,imgfiles = getFiles(imgdir,ImgType)
@@ -955,11 +978,10 @@ def main_crop_object_img(imgdir):
     total = len(imgfiles)
     id = 1
 
-    for file in imgfiles:
-        print("%d/%d Currrent image: %s" %(id,total,file))
+    for file in tqdm(imgfiles):
         try:
             for cls in clsname:
-                saveCropImg(imgdir,file,cls,scale,square)
+                saveCropImg(imgdir,file,cls,scale,square,resize_img)
         except Exception as e:
             print(e)
             print(traceback.format_exc())
@@ -1348,7 +1370,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\temp1\test/"
+        file_dir = r"D:\07_temp\bx\tt/"
         # pass
 
     try:
@@ -1379,7 +1401,7 @@ if __name__ == "__main__":
         elif action == "checklabelxml":#checklabelxml
             print(main_check_label_xml.__doc__)
             main_check_label_xml(file_dir)
-        elif action == "":#squareimg
+        elif action == "squareimg":#squareimg
             print(main_create_square_image_samples.__doc__)
             main_create_square_image_samples_one_pic(file_dir)
         elif action == "plotinferres":

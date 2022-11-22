@@ -29,7 +29,7 @@ def checkmodel(model,mode="detect"):
     elif model['detect'] == "yolov7":
         from Detectbase.YoloV7Infer import ObjectDetect, Validation
     elif model['detect'] == "yolov5-6.2":
-        from Detectbase.YoloV5Infer import ObjectDetect, Validation
+        from Detectbase.YoloV562Infer import ObjectDetect, Validation
     if mode == "detect":
         return ObjectDetect(model)
     elif mode == "validation":
@@ -401,7 +401,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\03_\temp/"
+        file_dir = r"C:\Users\Yoking\Desktop\hs\ehuu\day\images\temp/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)
@@ -468,6 +468,9 @@ if __name__ == "__main__":
         elif action == "falldown_2cls":#classfication
             print(main_classfy.__doc__)
             print("falldown_2cls")
+        elif action == "":  # baosteel_surfacedefect_20cls_Yolov7
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir, model=config["model"]["steel_1cls"])
         # main_classfy(file_dir, model=config["model"]["falldown_2cls"])
         # main_create_xml(file_dir, model=config["model"]["person"])
         # main_create_xml(file_dir, model=config["model"]["person"])

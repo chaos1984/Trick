@@ -1,4 +1,5 @@
 from Detectbase import Infer
+import logging
 import argparse
 import ntpath
 import os
@@ -12,17 +13,17 @@ from tqdm import tqdm
 from threading import Thread
 
 
-from models.common import DetectMultiBackend
+# from models.common import DetectMultiBackend
+from models.experimental import attempt_load
 # from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
 from utils.datasets import create_dataloader
-from utils.general import (LOGGER, box_iou, check_dataset, check_img_size, check_requirements, check_yaml,
-                           coco80_to_coco91_class, colorstr, increment_path, non_max_suppression, print_args,
+from utils.general import ( box_iou, check_dataset, check_img_size,
+                           coco80_to_coco91_class,  non_max_suppression,
                            scale_coords, xywh2xyxy, xyxy2xywh)
-from utils.plots import Annotator, colors, save_one_box
-from utils.torch_utils import select_device, time_sync
-from utils.augmentations import letterbox
+from utils.torch_utils import select_device, time_synchronized
+from utils.datasets import letterbox
 
-
+LOGGER = logging.getLogger(__name__)
 
 def process_batch(detections, labels, iouv):
     """
@@ -59,7 +60,7 @@ class ObjectDetect(Infer):
         self.half = True
         # use FP16 half-precision inference
         self.dnn = False
-        self.model = DetectMultiBackend(self.weights, device=self.device, dnn=self.dnn, data=self.data)
+        self.model = attempt_load(self.weights, map_location=self.device)
         self.stride, self.names, pt = self.model.stride, self.model.names, self.model.pt
         try:
             self.model.model.half() if self.half else self.model.model.float()
@@ -78,12 +79,12 @@ class ObjectDetect(Infer):
         if len(im.shape) == 3:
             im = im[None]  # expand for batch dim
         # Inference
-        t1 = time_sync()
+        t1 = time_synchronized()
         pred = self.model(im, augment=False, visualize=False)
-        t2 = time_sync()
+        t2 = time_synchronized()
         pred = non_max_suppression(pred, self.conf_thres, self.iou_thres, self.classes, self.agnostic_nms,
                                    max_det=1000)
-        t3 = time_sync()
+        t3 = time_synchronized()
         print(f'Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
         # Process predictions
 
@@ -111,7 +112,7 @@ class Validation(Infer):
     @torch.no_grad()
     def run(self, rundir,save_dir):
         from utils.metrics import ConfusionMatrix, ap_per_class
-        from utils.plots import output_to_target, plot_images, plot_val_study
+        from utils.plots import plot_images, plot_labels, plot_results, plot_evolution
         # from utils.callbacks import Callbacks
         # callbacks = Callbacks(),
         single_cls = False
@@ -126,7 +127,7 @@ class Validation(Infer):
         niou = iouv.numel()
         testdir = rundir + '/test.txt'
         dataloader = create_dataloader(testdir, self.imgsize[0], self.batch_size, self.stride, single_cls, pad=0.0, rect=self.pt,
-                                       workers=2, prefix=colorstr(f'test: '))[0]
+                                       workers=2)[0]
         seen = 0
         confusion_matrix = ConfusionMatrix(nc=nc,conf=self.conf_thres, iou_thres=self.iou_thres)
         names = {k: v for k, v in enumerate(self.model.names if hasattr(self.model, 'names') else self.model.module.names)}
