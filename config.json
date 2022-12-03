@@ -94,13 +94,13 @@
 			"device": "cpu"
 		},
 		"steel_1cls": {
-			"detect":"yolov5",
-			"weights": "D:/05_Trick/modellib/baosteel_surfacedefect_1cls_Yolo/best.pt",
+			"detect":"yolov5-6.2",
+			"weights": "D:/05_Trick/modellib/baosteel_surfacedefect_1cls_Yolo/best_1.pt",
 			"classes": ["hs"],
 			"save_dir":"./",
-			"conf_thres": 0.4,
+			"conf_thres": 0.2,
 			"iou_thres": 0.45,
-			"imgsize":780,
+			"imgsize":640,
 			"device": "GPU"
 		},
 		"safetybelt": {

@@ -401,7 +401,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"C:\Users\Yoking\Desktop\hs\ehuu\day\images\temp/"
+        file_dir = r"D:\07_temp\pack\train_finish/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)
@@ -457,7 +457,7 @@ if __name__ == "__main__":
             name = input("Object rules for check(alarm,mask):")
             main_checkConfidence(file_dir,rules=config["rules"][name],DOE=config["DOE"][name])
         elif action == "validation":#validation
-            name = input("Validation for yolov5(alarm,mask):")
+            name = input("Validation for yolov5\nNOTE: image or label not in directory\n Input labels:")
             main_change_voc_to_yolo(file_dir,cls=config["model"][name]["classes"])
             main_yolo_train_val_set(file_dir, task='test')
             main_val_xml(file_dir, model=config["model"][name])

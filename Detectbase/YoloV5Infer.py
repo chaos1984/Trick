@@ -13,17 +13,17 @@ from tqdm import tqdm
 from threading import Thread
 
 
-# from models.common import DetectMultiBackend
 from models.experimental import attempt_load
+# from models.common import DetectMultiBackend
 # from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
 from utils.datasets import create_dataloader
-from utils.general import ( box_iou, check_dataset, check_img_size,
-                           coco80_to_coco91_class,  non_max_suppression,
+from utils.general import ( box_iou,
+                           coco80_to_coco91_class,   non_max_suppression,
                            scale_coords, xywh2xyxy, xyxy2xywh)
-from utils.torch_utils import select_device, time_synchronized
-from utils.datasets import letterbox
 
+from utils.augmentations import letterbox
 LOGGER = logging.getLogger(__name__)
+
 
 def process_batch(detections, labels, iouv):
     """
@@ -52,26 +52,23 @@ class ObjectDetect(Infer):
     def __init__(self,config):
         Infer.__init__(self, config)
         # self.imgsz = (640, 640)
-
         self.max_det=1000  # maximum detections per image
         self.classes = None  # filter by class: --class 0, or --class 0 2 3
         self.agnostic_nms = False  # class-agnostic NMS
         # self.line_thickness = 3  # bounding box thickness (pixels)
-        self.half = True
-        # use FP16 half-precision inference
+        self.half = False  # use FP16 half-precision inference
         self.dnn = False
-        self.model = attempt_load(self.weights, map_location=self.device)
-        self.stride, self.names, pt = self.model.stride, self.model.names, self.model.pt
-        try:
-            self.model.model.half() if self.half else self.model.model.float()
-        except:
-            pass
+        self.model = attempt_load(self.weights,  map_location=self.device)
+        self.stride, self.names = self.model.stride.max().item(),self.model.names
+        self.model.model.half() if self.half else self.model.model.float()
     @torch.no_grad()
     def run(self, img,res={}):
         # img = cv2.imread(img)
         img0 = img.copy()
-        img = letterbox(img, self.imgsize, stride=self.stride, auto=True)[0] #True
+        img = letterbox(img, self.imgsize, stride=self.stride, auto=True)[0]
+        # cv2.imwrite('../dataset/test/11.jpg',img)
         img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+        # cv2.imwrite('../dataset/test/12.jpg', img)
         img = np.ascontiguousarray(img)
         im = torch.from_numpy(img).to(self.device)
         im = im.half() if self.half else im.float()  # uint8 to fp16/32
@@ -79,13 +76,10 @@ class ObjectDetect(Infer):
         if len(im.shape) == 3:
             im = im[None]  # expand for batch dim
         # Inference
-        t1 = time_synchronized()
         pred = self.model(im, augment=False, visualize=False)
-        t2 = time_synchronized()
         pred = non_max_suppression(pred, self.conf_thres, self.iou_thres, self.classes, self.agnostic_nms,
                                    max_det=1000)
-        t3 = time_synchronized()
-        print(f'Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
+
         # Process predictions
 
         self.res = []
@@ -104,15 +98,15 @@ class Validation(Infer):
         # self.line_thickness = 3  # bounding box thickness (pixels)
         self.half = False  # use FP16 half-precision inference
         self.dnn = False
-        self.model = DetectMultiBackend(self.weights, device=self.device, dnn=self.dnn, data=self.data)
-        self.stride, self.names, self.pt = self.model.stride, self.model.names, self.model.pt
+        self.model = attempt_load(self.weights,  map_location=self.device)
+        self.stride, self.names = self.stride = self.model.stride.max(), self.model.names
         self.model.model.half() if self.half else self.model.model.float()
 
 
     @torch.no_grad()
     def run(self, rundir,save_dir):
         from utils.metrics import ConfusionMatrix, ap_per_class
-        from utils.plots import plot_images, plot_labels, plot_results, plot_evolution
+        from utils.plots import output_to_target, plot_images, plot_val_study
         # from utils.callbacks import Callbacks
         # callbacks = Callbacks(),
         single_cls = False
@@ -127,7 +121,7 @@ class Validation(Infer):
         niou = iouv.numel()
         testdir = rundir + '/test.txt'
         dataloader = create_dataloader(testdir, self.imgsize[0], self.batch_size, self.stride, single_cls, pad=0.0, rect=self.pt,
-                                       workers=2)[0]
+                                       workers=8, prefix=colorstr(f'test: '))[0]
         seen = 0
         confusion_matrix = ConfusionMatrix(nc=nc,conf=self.conf_thres, iou_thres=self.iou_thres)
         names = {k: v for k, v in enumerate(self.model.names if hasattr(self.model, 'names') else self.model.module.names)}

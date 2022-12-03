@@ -639,7 +639,7 @@ def plotRectBox(img,objectlist,names):
     Usage:
     '''
     sys.path.append(config["yolov5"])
-    from utils.plots import Annotator, colors, save_one_box
+    from utils.plots import Annotator, colors
     annotator = Annotator(img, line_width=3, example="")
     
     for object in objectlist:
@@ -1120,6 +1120,30 @@ def main_change_hsv(filedir):
         img = cv2.imread(os.path.join(filedir,file))
         img = changeHSV(img)
         cv2.imwrite(os.path.join(str(savedir),file),img)
+
+def sobelx(img):
+    # img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)#转为灰度图
+    dst = np.zeros_like(img)
+    cv2.normalize(img, dst, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
+    # cv_show('ori', img)
+    # cv_show('res', dst)
+    img_sobel = cv2.Sobel(dst,cv2.CV_8U,1,0)
+    # res = cv2.cvtColor(img_sobel,cv2.COLOR_GRAY2RGB)
+    # cv_show('res',img_sobel)
+    return img_sobel
+
+def main_change_sobelx(filedir):
+    '''
+        Change the light
+    '''
+    savedir = mkFolder(filedir,'gray')
+    _,filenamelist = getFiles(filedir,ImgType)
+    total = len(filenamelist)
+    for id,file in enumerate(filenamelist):
+        print("%d/%d Currrent image: %s" %(id+1,total,file))
+        img = cv2.imread(os.path.join(filedir,file))
+        img = sobelx(img)
+        cv2.imwrite(os.path.join(str(savedir),file),img)
         
 def main_clip_square_image(imgdir):
     savedir = mkFolder(imgdir,"square_dataset")
@@ -1361,6 +1385,16 @@ def main_split_dataset(filedir):
 
     imgfilefull, _ = getFiles(filedir, ImgType)
 
+def main_add_figurelabel(filedir):
+    ''' Add label for figure xml'''
+    xmlfiles, _ = getFiles(filedir, LabelType)
+    label = input("Label name:")
+    for xmlfile in tqdm(xmlfiles):
+        bboxlist,w,h = getObjectxml(xmlfile,classes='all')
+        bboxlist.append([label,0,0,10,10,0])
+        xmldic = {"size": {"w": str(w), "h": str(h), "c": '3'}, "object": bboxlist}
+        createObjxml(xmldic, xmlfile[:-4] + '.xml', cls=[])
+
 
 if __name__ == "__main__":
     try:
@@ -1370,7 +1404,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\07_temp\bx\tt/"
+        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\03_\test/"
         # pass
 
     try:
@@ -1443,9 +1477,15 @@ if __name__ == "__main__":
         elif action == "resizeimage":#resizeimage
             print(main_resize_image.__doc__)
             main_resize_image(file_dir)
-        elif action == "":#splitdataset
+        elif action == "splitdataset":#
             print(main_split_dataset.__doc__)
             main_split_dataset(file_dir)
+        elif action == "sobel_x":#
+            print(main_change_sobelx.__doc__)
+            main_change_sobelx(file_dir)
+        elif action == "addfigurelabel":#addfigurelabel
+            print(main_add_figurelabel.__doc__)
+            main_add_figurelabel(file_dir)
     except Exception as e:
         print(e)
         print(traceback.format_exc())
