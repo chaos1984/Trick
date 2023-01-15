@@ -618,7 +618,7 @@ def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True,resize_img =0):
                 crop_img = cv2.resize(crop_img,(resize_img ,resize_img ))
             else:
                 xmldic = {"size": {"w": str(w), "h": str(h), "c": str(c)},"object": object}
-                createObjxml(xmldic, saveimg, cls=classes)
+                # createObjxml(xmldic, saveimg, cls=classes)
 
             saveimg = os.path.join(savedir, imgfile[:-4] + '_' + clsname + '_' + str(id) + '.jpg')
             cv2.imwrite(saveimg, crop_img)
@@ -967,16 +967,13 @@ def main_crop_object_img(imgdir):
         Crop objet image(include inner objects in box)
     '''
     clsname = input("Input class name:")
-    scale = float(input("Input scale factor(max(h,w)):"))
-
+    scale = float(input("Input expand ratio (max(h,w)):"))
     square = True if input("Crop image with padding(Y/N):") == "Y" else False
     resize_img = int(input("Resize(0:no):")) 
 
     clsname = clsname.split(',')
     _,imgfiles = getFiles(imgdir,ImgType)
 
-    total = len(imgfiles)
-    id = 1
 
     for file in tqdm(imgfiles):
         try:
@@ -985,7 +982,6 @@ def main_crop_object_img(imgdir):
         except Exception as e:
             print(e)
             print(traceback.format_exc())
-        id += 1
 
 
 
@@ -1012,6 +1008,9 @@ def main_plot_bbox(imgdir):
         img = plotRectBox(img,bbox,names=cls)
         print("%d/%d Currrent image: %s" %(id+1,total,file))
         imgpath = savedir / file
+
+        # img = plot_line(img,ptStart = (1160, 110),ptEnd = (0, 630))
+        # img = plot_line(img, ptStart=(960, 35), ptEnd=(0, 339))
         cv2.imwrite(str(imgpath),img)
         if id == 0:
             path = os.path.join(savedir,'video.mp4')
@@ -1020,6 +1019,12 @@ def main_plot_bbox(imgdir):
         vid_writer.write(img)
     vid_writer.release()
     return
+
+def plot_line(img,ptStart = (60, 60),ptEnd = (260, 260),point_color = (0,255,255)):
+    thickness = 3
+    lineType = 4
+    cv2.line(img, ptStart, ptEnd, point_color, thickness, lineType)
+    return img
 
 
 def main_create_square_image_samples_one_pic(filedir1):
@@ -1041,10 +1046,12 @@ def main_create_square_image_samples_one_pic(filedir1):
         flip = ['v', 'h', 'vh', "o"]
         img = createSquarImg(concimgs,flip = flip)
         cv2.imwrite(imgfilepath,img)
-
-        xmlfile = [file.replace(file[-4:],".xml") for file in concimgs]
-        xmlfile = combineXMLinDirection(xmlfile,edge,fignum,padding,direction,flip = flip)
-        xmlfile.write(imgfilepath.replace(file[-4:],'.xml'))
+        try:
+            xmlfile = [file.replace(file[-4:],".xml") for file in concimgs]
+            xmlfile = combineXMLinDirection(xmlfile,edge,fignum,padding,direction,flip = flip)
+            xmlfile.write(imgfilepath.replace(file[-4:],'.xml'))
+        except:
+            print("No xml file is found!")
 
 
 
@@ -1218,7 +1225,7 @@ def main_remunusedfile(xmldir):
 def main_imgchangetojpg(imgdir):
     " Change images' format to jpg "
     imgsdir,_ = getFiles(imgdir,ImgType)
-    filetype = input("File type('.tif'):")
+    filetype = input("You want to change to File type('.tif'):")
     for img in tqdm(imgsdir):
          im = cv2.imread(img) 
 
@@ -1395,6 +1402,23 @@ def main_add_figurelabel(filedir):
         xmldic = {"size": {"w": str(w), "h": str(h), "c": '3'}, "object": bboxlist}
         createObjxml(xmldic, xmlfile[:-4] + '.xml', cls=[])
 
+def main_movefilestoone(imgdir):
+    " Move files into father dirctory "
+    for dir in os.listdir(imgdir):
+        dir = imgdir + dir + '/'
+        imgsdir, _ = getFiles(dir , ImgType)
+        for img in imgsdir:
+            for cpfile in findRelativeFiles(img):
+                move(cpfile,imgdir)
+
+def main_moveconfuse(imgdir):
+    " Move error files into errorsamples folder"
+    savedir = mkFolder(imgdir,'errorsamples')
+    for line in open(imgdir+"errorlist.txt","r"):
+        file = imgdir + line.split(' ')[0]
+        for cpfile in findRelativeFiles(file):
+            move(cpfile, savedir)
+
 
 if __name__ == "__main__":
     try:
@@ -1404,7 +1428,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\03_\test/"
+        file_dir = r"D:\360MoveData\Users\Yoking\Desktop\tes_cam\valpic/"
         # pass
 
     try:
@@ -1486,6 +1510,12 @@ if __name__ == "__main__":
         elif action == "addfigurelabel":#addfigurelabel
             print(main_add_figurelabel.__doc__)
             main_add_figurelabel(file_dir)
+        elif action == "movefilestoone":  # movefilestoone
+            print(main_movefilestoone.__doc__)
+            main_movefilestoone(file_dir)
+        elif action == "moveerrorfiles":  # moveerrorfiles
+            print(main_moveconfuse.__doc__)
+            main_moveconfuse(file_dir)
     except Exception as e:
         print(e)
         print(traceback.format_exc())

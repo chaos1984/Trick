@@ -3,6 +3,24 @@ import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import ElementTree,Element
 from utils_pre import *
 
+def indent(elem, level=0):
+    '''xml 对齐
+       elem:节点
+       level:级别 默认0
+    '''
+    i = "\n" + level*"\t"
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "\t"
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level+1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 def create_node(tag, content=''):
     '''新造一个节点
        tag:节点标签
@@ -26,7 +44,7 @@ def combineXMLinDirection(xmlfilelist, edgelen,fignum,padding,direction,flip):
 def combineXML(xmlfilelist,flip,xoffset=0,yoffset=0):
     tree = ET.parse(xmlfilelist[0])
     root = tree.getroot()
-    root[4][0].text = root[4][1].text = str(max(int(root[4][0].text) , int(root[4][1].text)))
+    root.findall("size")[0].findall("width")[0].text = root.findall("size")[0].findall("width")[0].text = str(max(int(root.findall("size")[0].findall("width")[0].text) , int(root.findall("size")[0].findall("height")[0].text)))
     # size = root.findall("size")
 
     for i,xmlfile in enumerate(xmlfilelist[1:]):
@@ -61,8 +79,9 @@ def combineXML(xmlfilelist,flip,xoffset=0,yoffset=0):
             obj[1].append(create_node("xmax", str(xmax+xoffset*(i+1))))
             obj[1].append(create_node("ymax", str(ymax+yoffset*(i+1))))
             root.append(obj)
+    for elem in root:
+        indent(elem, level=0)
     return tree
-
 
 def createObjxml(res,imgpath,cls=[],xmlfile=None):
     '''
@@ -79,8 +98,9 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
     Usage:
     '''
     # print(res,imgpath)
-    if xmlfile==None:
+    if xmlfile==None: #creat new xml
         root = create_node("annotation","")
+        root.append(create_node("folder", "None"))
         root.append(create_node("filename","None"))
         root.append(create_node("path","None"))
         source = create_node("source","")
@@ -93,7 +113,7 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
         root.append(size)
         #
         tree = ElementTree(root)
-    else:
+    else: # xml
         tree = ET.parse(xmlfile)
         root = tree.getroot()
     for id,item in enumerate(res["object"]):
@@ -121,7 +141,8 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
         obj[4].append(create_node("ymax",str(min(ymax+1,int(res["size"]["h"])))))
         obj[4].append(create_node("confidence", str(confidence)))
         root.append(obj)
-
+    for elem in root:
+        indent(elem, level=0)
     tree.write(imgpath.replace(imgpath[-4:],".xml"))
 
 

@@ -14,14 +14,14 @@
 			"device": "cuda:0"
 		},
 		"person": {
-			"detect":"yolov5",
-			"weights": "D:/05_Trick/modellib/person_smoke/best_5l6_liuyi.pt",
+			"detect":"yolov5-6.2",
+			"weights": "D:/05_Trick/modellib/chihong_4cls/best_0110.pt",
 			"classes": ["person","smoke","remote","cell phone"],
 			"save_dir":"./",
-			"conf_thres": 0.8,
+			"conf_thres": 0.4,
 			"iou_thres": 0.45,
-			"imgsize":768,
-			"device": "cpu"
+			"imgsize":1024,
+			"device": "GPU"
 		},
 		"mask": {
 			"detect":"yolov5",
@@ -165,7 +165,7 @@
 		},
     "baosteel_surfacedefect_20cls": {
       "detect": "yolov5-6.2",
-      "weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_1031_2.pt",
+      "weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_1124.pt",
       "classes": [ "qp_bbqp_sj", "bdxtp", "bs", "bx", "cs", "dr", "hb", "hx", "jqtw", "jz", "kd", "tph", "yh", "by" ],
       "save_dir": "./",
       "conf_thres": 0.25,
