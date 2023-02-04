@@ -143,7 +143,8 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
         root.append(obj)
     for elem in root:
         indent(elem, level=0)
-    tree.write(imgpath.replace(imgpath[-4:],".xml"))
+        format_index = imgpath.index('.')
+    tree.write(imgpath[:format_index ]+".xml")
 
 
 def movObjectxml(xmlfiles,cls,savedir,numclass = 99):

@@ -401,7 +401,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\07_temp\pack\train_finish/"
+        file_dir = r"D:/02_Project/12_Chihong/Chihong_V3/"
     try:
         if action == "personxml":
             print(main_create_xml.__doc__)
@@ -468,9 +468,12 @@ if __name__ == "__main__":
         elif action == "falldown_2cls":#classfication
             print(main_classfy.__doc__)
             print("falldown_2cls")
-        elif action == "":  # baosteel_surfacedefect_20cls_Yolov7
+        elif action == "baosteel_surfacedefect_20cls_Yolov7":  # baosteel_surfacedefect_20cls_Yolov7
             print(main_create_xml.__doc__)
             main_create_xml(file_dir, model=config["model"]["steel_1cls"])
+        elif action == "":  # baosteel_surfacedefect_20cls_Yolov7
+            print(main_create_xml.__doc__)
+            main_create_xml(file_dir, model=config["model"]["vehicle"])
         # main_classfy(file_dir, model=config["model"]["falldown_2cls"])
         # main_create_xml(file_dir, model=config["model"]["person"])
         # main_create_xml(file_dir, model=config["model"]["person"])

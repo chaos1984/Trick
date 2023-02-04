@@ -911,8 +911,8 @@ def main_yolo_train_val_set(imgdir,task = 'test'):
             return
         
 
-        train_files =   [img_serverdir + i for i in train_files]
-        val_files =   [img_serverdir + i for i in val_files]
+        train_files =   [img_serverdir+ 'train/' + i for i in train_files]
+        val_files =   [img_serverdir +'validation/' + i for i in val_files]
         writeFile(samplerdir / 'train.txt', train_files)
         writeFile(samplerdir / 'val.txt',val_files)
     else:
@@ -967,7 +967,7 @@ def main_crop_object_img(imgdir):
         Crop objet image(include inner objects in box)
     '''
     clsname = input("Input class name:")
-    scale = float(input("Input expand ratio (max(h,w)):"))
+    scale =  float(input("Input expand ratio (max(h,w)):"))
     square = True if input("Crop image with padding(Y/N):") == "Y" else False
     resize_img = int(input("Resize(0:no):")) 
 
@@ -1409,7 +1409,10 @@ def main_movefilestoone(imgdir):
         imgsdir, _ = getFiles(dir , ImgType)
         for img in imgsdir:
             for cpfile in findRelativeFiles(img):
-                move(cpfile,imgdir)
+                try:
+                    move(cpfile,imgdir)
+                except:
+                    print("File is duplicated!")
 
 def main_moveconfuse(imgdir):
     " Move error files into errorsamples folder"
@@ -1521,3 +1524,5 @@ if __name__ == "__main__":
         print(traceback.format_exc())
 
     os.system("pause")
+
+    Pip

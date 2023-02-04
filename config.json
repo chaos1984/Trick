@@ -15,12 +15,22 @@
 		},
 		"person": {
 			"detect":"yolov5-6.2",
-			"weights": "D:/05_Trick/modellib/chihong_4cls/best_0110.pt",
+			"weights": "D:/05_Trick/modellib/chihong_4cls/last.pt",
 			"classes": ["person","smoke","remote","cell phone"],
 			"save_dir":"./",
 			"conf_thres": 0.4,
 			"iou_thres": 0.45,
-			"imgsize":1024,
+			"imgsize":1280,
+			"device": "GPU"
+		},
+        "vehicle": {
+			"detect":"yolov5-6.2",
+			"weights": "D:/05_Trick/modellib/chihong_vehicle/best.pt",
+			"classes": ["vehicle"],
+			"save_dir":"./",
+			"conf_thres": 0.8,
+			"iou_thres": 0.45,
+			"imgsize":640,
 			"device": "GPU"
 		},
 		"mask": {
