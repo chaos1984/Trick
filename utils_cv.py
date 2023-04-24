@@ -337,13 +337,19 @@ def hsvadjust1(img,prob=1.0):
     if random.random() < prob:
         hue, sat, val = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HSV))
         dtype = img.dtype  # uint8
-        h_norm = (hue/np.max(hue)*180).astype(dtype)
-        s_norm = (sat/np.max(sat)*255).astype(dtype)
+        if np.max(hue)!=0:
+            h_norm = (hue/np.max(hue)*180).astype(dtype)
+            s_norm = (sat/np.max(sat)*255).astype(dtype)
+        else:
+            h_norm = hue.astype(dtype)
+            s_norm = sat.astype(dtype)
         v_norm = (val/np.max(val)*255).astype(dtype)
         img_hsv = cv2.merge([h_norm,s_norm,v_norm])
         return cv2.cvtColor(img_hsv,cv2.COLOR_HSV2BGR)
+    else:
+        return img
 
-def main_augmentImgs(imgdir,prob=[1,1,0,0]):
+def main_augmentImgs(imgdir,prob=[1,0.5,0,0]):
     '''
        Augmentation for Images
     '''
@@ -365,9 +371,8 @@ def main_augmentImgs(imgdir,prob=[1,1,0,0]):
         for file in files:
             if ".xml" in file:
                 flipObjextxml(file,str(xmldir),fliptype)
-
         cv2.imwrite(imgdir.__str__(), im)
-        return
+
 
 if __name__ == "__main__":
     
@@ -379,7 +384,7 @@ if __name__ == "__main__":
     except:
         action = ""
  
-        file_dir = r"D:/01_Project/02_Baosteel/01_Input/Dataset/V4_20220801/maindefectforlabel/labelwork/done/test/"
+        file_dir = r"D:\360MoveData\Users\Yoking\Desktop\images\train\htp/"
         # pass
     try:
         if action == "augmentation":#augmentation

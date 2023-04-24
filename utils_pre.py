@@ -535,7 +535,7 @@ def saveCropImgcopy(imgdir,imgfile,clsname,scale=0.1,square = True):
             cv2.imwrite(saveimg,crop_img)
 
 
-def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True,resize_img =0):
+def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True,resize_img =0,fixroi = False):
     '''
     Description: Crop image accoding to the bounding box from xml, and save the cropped image
     Author: Yujin Wang
@@ -554,8 +554,16 @@ def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True,resize_img =0):
         xc = (x1+x2)/2;yc = (y1+y2)/2
         return (xmin <= xc <= xmax) and (ymin <= yc <= ymax),(xmin <= x1 <= xmax) and (xmin <= x2 <= xmax) and (ymin <= y1 <= ymax) and (ymin <= y2 <= ymax)
     savedir = mkFolder(imgdir, clsname + "_" + 'crop')
-    xmlfile = imgfile.replace(imgfile[-4:], ".xml")
-    objectlist, w, h = getObjectxml(imgdir + xmlfile,[clsname])
+    if fixroi == False:
+        xmlfile = imgfile.replace(imgfile[-4:], ".xml")
+    else:
+        try:
+            xmlfile = imgdir + "crop.xml"
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
+    objectlist, w, h = getObjectxml(xmlfile, [clsname])
+
     img = cv2.imread(imgdir + imgfile)
 
     img, hoffset, woffset = paddingSquare(img)
@@ -603,7 +611,7 @@ def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True,resize_img =0):
             h, w, c = crop_img.shape
 
             classes = [clsname]
-            innerobjectlist, _, _ = getObjectxml(imgdir + xmlfile, "all")
+            innerobjectlist, _, _ = getObjectxml(xmlfile, "all")
             for innerbox in innerobjectlist:
                 confidence = innerbox[5] if innerbox[5] != 0 else 0
                 centerinflag,_ = box_in_box(innerbox[1], innerbox[2], innerbox[3], innerbox[4], objectbox[1], objectbox[2], objectbox[3],objectbox[4])
@@ -1394,13 +1402,30 @@ def main_split_dataset(filedir):
 
 def main_add_figurelabel(filedir):
     ''' Add label for figure xml'''
-    xmlfiles, _ = getFiles(filedir, LabelType)
-    label = input("Label name:")
-    for xmlfile in tqdm(xmlfiles):
-        bboxlist,w,h = getObjectxml(xmlfile,classes='all')
-        bboxlist.append([label,0,0,10,10,0])
+    imgfiles, _ = getFiles(filedir, ImgType)
+    label =  input("Label name:") 
+
+    if label == "":
+        label  = "temp"
+        Min_x = 0
+        Min_y = 0
+        Max_x = 1
+        Max_y = 1
+    else:   
+        Min_x = int(input("BOX Min_x:")) 
+        Min_y = int(input("BOX Min_y:"))
+        Max_x = int(input("BOX Max_x:"))
+        Max_y = int(input("BOX Max_y:"))
+ 
+    for imgfile in tqdm(imgfiles):
+        xmlfile = imgfile[:-4] + '.xml'
+        if os.path.exists(imgfile[:-4] + '.xml'):
+            bboxlist,w,h = getObjectxml(xmlfile,classes='all')
+        else:
+            bboxlist,w,h = [],99999,99999
+        bboxlist.append([label,Min_x,Min_y,Max_x,Max_y,0])
         xmldic = {"size": {"w": str(w), "h": str(h), "c": '3'}, "object": bboxlist}
-        createObjxml(xmldic, xmlfile[:-4] + '.xml', cls=[])
+        createObjxml(xmldic, imgfile[:-4] + '.xml', cls=[])
 
 def main_movefilestoone(imgdir):
     " Move files into father dirctory "
@@ -1422,6 +1447,39 @@ def main_moveconfuse(imgdir):
         for cpfile in findRelativeFiles(file):
             move(cpfile, savedir)
 
+def main_mkdirforonedir(imgdir):
+    "Move one image to folder named with imgage file name"
+    _,imgfiles = getFiles(imgdir, ImgType)
+
+    for id,img in enumerate(imgfiles):
+        savedir = mkFolder(imgdir,str(id))
+        move(os.path.join(imgdir,img), savedir)
+
+def main_cropfixedroi(imgdir,clsname=["temp"]):
+    "Move crop.xml file into the target dir."
+    _,imgfiles = getFiles(imgdir,ImgType)
+    for file in tqdm(imgfiles):
+        try:
+            for cls in clsname:
+                saveCropImg(imgdir, file, cls,scale=0,square=False,fixroi =True)
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
+
+def main_movediffimg(imgdir):
+    imgdir1 = input("Dir1:")+"\\"
+    imgdir2 = input("Dir2:")+"\\"
+    _, imgfiles1 = getFiles(imgdir1, ImgType)
+    _, imgfiles2 = getFiles(imgdir2, ImgType)
+    diff_files = mkFolder(imgdir1,"diff")
+    for file in imgfiles2:
+        if file  in imgfiles1:
+            print (file)
+            if os.path.exists(imgdir2+file):
+                copyfile(os.path.join(imgdir2,file),os.path.join(diff_files,file))
+            else:
+                print(f'{file} is not found in dir 2！')
+
 
 if __name__ == "__main__":
     try:
@@ -1431,7 +1489,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\360MoveData\Users\Yoking\Desktop\tes_cam\valpic/"
+        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\02_Label\full\full\P4350021_01705527_1025_1170521107/"
         # pass
 
     try:
@@ -1486,7 +1544,7 @@ if __name__ == "__main__":
         elif action == "remUnusedXML":
             print(main_remunusedfile.__doc__)
             main_remunusedfile(file_dir)
-        elif action == "imagefiter":
+        elif action == "imagefiter":#imagefiter
             print(main_imagesize_filter.__doc__)
             main_imagesize_filter(file_dir)
         elif action == "imgchangetojpg":
@@ -1519,10 +1577,17 @@ if __name__ == "__main__":
         elif action == "moveerrorfiles":  # moveerrorfiles
             print(main_moveconfuse.__doc__)
             main_moveconfuse(file_dir)
+        elif action == "mkdirforonedir":  #mkdirforonedir
+            print(main_mkdirforonedir.__doc__)
+            main_mkdirforonedir(file_dir)
+        elif action == "cropfixedroi":#cropfixedroi
+            print(main_cropfixedroi.__doc__)
+            main_cropfixedroi(file_dir)
+        elif action == "":
+            print(main_movediffimg.__doc__)
+            main_movediffimg(file_dir)
     except Exception as e:
         print(e)
         print(traceback.format_exc())
 
     os.system("pause")
-
-    Pip

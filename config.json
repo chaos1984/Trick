@@ -26,11 +26,11 @@
         "vehicle": {
 			"detect":"yolov5-6.2",
 			"weights": "D:/05_Trick/modellib/chihong_vehicle/best.pt",
-			"classes": ["vehicle"],
+			"classes": ["person","vehicle"],
 			"save_dir":"./",
 			"conf_thres": 0.8,
 			"iou_thres": 0.45,
-			"imgsize":640,
+			"imgsize":1024,
 			"device": "GPU"
 		},
 		"mask": {
@@ -201,6 +201,16 @@
 			"conf_thres": 0.1,
 			"iou_thres": 0.45,
 			"imgsize":768,
+			"device": "GPU"
+		},		
+    "cls_test": {
+			"detect":"yolov5-6.2",
+			"weights": "D:/05_Trick/modellib/cls_test/best.pt",
+			"classes": ["item"],
+			"save_dir":"./",
+			"conf_thres": 0.1,
+			"iou_thres": 0.45,
+			"imgsize":780,
 			"device": "GPU"
 		}
 	},
