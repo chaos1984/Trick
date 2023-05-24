@@ -1467,6 +1467,7 @@ def main_cropfixedroi(imgdir,clsname=["temp"]):
             print(traceback.format_exc())
 
 def main_movediffimg(imgdir):
+    "Move different iamges by commparing files between img dirs"
     imgdir1 = input("Dir1:")+"\\"
     imgdir2 = input("Dir2:")+"\\"
     _, imgfiles1 = getFiles(imgdir1, ImgType)
@@ -1479,6 +1480,13 @@ def main_movediffimg(imgdir):
                 copyfile(os.path.join(imgdir2,file),os.path.join(diff_files,file))
             else:
                 print(f'{file} is not found in dir 2！')
+def main_mvimg2carmerafold(imgdir):
+    "Move  images by to camera fold"
+    img, imgname = getFiles(imgdir, ImgType)
+    for i,name in enumerate(imgname):
+        camera_num = name.split('_')[2]
+        des = mkFolder(imgdir,str(camera_num))
+        move(img[i],des)
 
 
 if __name__ == "__main__":
@@ -1489,7 +1497,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\02_Project\02_Baosteel\01_Hot_rolling_strip_steel_surface_defect_detection\02_Label\full\full\P4350021_01705527_1025_1170521107/"
+        file_dir = r"D:\360MoveData\Users\Yoking\Desktop\222\images/"
         # pass
 
     try:
@@ -1580,12 +1588,16 @@ if __name__ == "__main__":
         elif action == "mkdirforonedir":  #mkdirforonedir
             print(main_mkdirforonedir.__doc__)
             main_mkdirforonedir(file_dir)
-        elif action == "cropfixedroi":#cropfixedroi
+        elif action == "":#cropfixedroi
             print(main_cropfixedroi.__doc__)
             main_cropfixedroi(file_dir)
-        elif action == "":
+        elif action == "movdiffimg":#movdiffimg"
             print(main_movediffimg.__doc__)
             main_movediffimg(file_dir)
+        elif action == "mvimg2carmerafold":#
+            print(main_mvimg2carmerafold.__doc__)
+            main_mvimg2carmerafold(file_dir)
+
     except Exception as e:
         print(e)
         print(traceback.format_exc())

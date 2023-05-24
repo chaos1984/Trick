@@ -134,11 +134,11 @@
 			"device": "cpu"
 		},
 		"mask_9cls": {
-			"detect":"yolov5",
+			"detect":"yolov5-6.2",
 			"weights": "D:/05_Trick/modellib/mask_9cls/mask_9cls_best_0619.pt",
 			"classes": ["mask","nomask","work_jzwzy","work_jzws","work_cw","work_yl1","work_yl2","nowork_yl1","nowork_yl2"] ,
 			"save_dir":"./",
-			"conf_thres": 0.6,
+			"conf_thres": 0.4,
 			"iou_thres": 0.45,
 			"imgsize":640,
 			"device": "GPU"
