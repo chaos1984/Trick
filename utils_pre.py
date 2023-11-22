@@ -535,6 +535,41 @@ def saveCropImgcopy(imgdir,imgfile,clsname,scale=0.1,square = True):
             cv2.imwrite(saveimg,crop_img)
 
 
+
+def saveSquareImg(imgdir, imgfile, clsname):
+    savedir = mkFolder(imgdir, clsname + "_" + 'crop')
+    imgfulldir = imgdir + imgfile
+    img = cv2.imread(imgfulldir)
+    height, width, _ = img.shape
+    edgesize = min(height,width)
+    xmlfile = imgfulldir.replace(imgfulldir[-4:], ".xml")
+    objectlist, w, h = getObjectxml(xmlfile, [clsname])
+    id = 0
+    if len(objectlist) > 0 and objectlist[0] != []:
+        for objectbox in objectlist:
+            id += 1
+            xmin = int(objectbox[1]) ;
+            ymin = int(objectbox[2]) ;
+            xmax = int(objectbox[3]) ;
+            ymax = int(objectbox[4]) ;
+            h = ymax - ymin;
+            w = xmax - xmin
+            if xmin == 0 :
+                xmax = edgesize
+            if xmax == width:
+                xmin = width - edgesize;
+
+            if ymin == 0:
+                ymax = edgesize
+            if ymax == height:
+                ymin = height-edgesize ;
+            crop_img = img[ymin:ymax, xmin:xmax]
+            saveimg = os.path.join(savedir, imgfile[:-4] + '_' + clsname + '_' + str(id) + '.jpg')
+            cv2.imwrite(saveimg, crop_img)
+
+
+
+
 def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True,resize_img =0,fixroi = False):
     '''
     Description: Crop image accoding to the bounding box from xml, and save the cropped image
@@ -554,21 +589,22 @@ def saveCropImg(imgdir, imgfile, clsname, scale=0.1, square=True,resize_img =0,f
         xc = (x1+x2)/2;yc = (y1+y2)/2
         return (xmin <= xc <= xmax) and (ymin <= yc <= ymax),(xmin <= x1 <= xmax) and (xmin <= x2 <= xmax) and (ymin <= y1 <= ymax) and (ymin <= y2 <= ymax)
     savedir = mkFolder(imgdir, clsname + "_" + 'crop')
+    imgfulldir = imgdir + imgfile
+    img = cv2.imread(imgfulldir)
+    height, width, _ = img.shape
     if fixroi == False:
-        xmlfile = imgfile.replace(imgfile[-4:], ".xml")
+        xmlfile = imgfulldir.replace(imgfulldir[-4:], ".xml")
+        objectlist, w, h = getObjectxml(xmlfile, [clsname])
     else:
         try:
             xmlfile = imgdir + "crop.xml"
+            objectlist, w, h = getObjectxml(xmlfile, 'all')
         except Exception as e:
             print(e)
             print(traceback.format_exc())
-    objectlist, w, h = getObjectxml(xmlfile, [clsname])
 
-    img = cv2.imread(imgdir + imgfile)
 
     img, hoffset, woffset = paddingSquare(img)
-    height, width, _ = img.shape
-
     id = 0
     if len(objectlist) > 0 and objectlist[0] != []:
         for objectbox in objectlist:
@@ -933,12 +969,17 @@ def main_imagesize_filter(imgdir):
     imgsizelist = []
     remdir = mkFolder(imgdir,"rem")
     resdir = mkFolder(imgdir,"res")
+    errdir = mkFolder(imgdir, "err")
     total = len(filelist)
     for id,file in enumerate(filelist):
         print(f'{id+1}/{total}:{file}')
-        img = cv2.imread(file)
-        w,h,_= img.shape
-        imgsizelist.append([file,w,h,w*h])
+        try:
+            img = cv2.imread(file)
+            w,h,_= img.shape
+            print(f'Done')
+            imgsizelist.append([file,w,h,w*h])
+        except:
+            move(file,errdir)
 
     imgsizelist = pd.DataFrame(imgsizelist,columns=["file","W","H","A"])
     imgsizelist.to_csv(resdir / "imgsize.csv")
@@ -975,9 +1016,17 @@ def main_crop_object_img(imgdir):
         Crop objet image(include inner objects in box)
     '''
     clsname = input("Input class name:")
-    scale =  float(input("Input expand ratio (max(h,w)):"))
-    square = True if input("Crop image with padding(Y/N):") == "Y" else False
-    resize_img = int(input("Resize(0:no):")) 
+    try:
+        scale =  float(input("Input expand ratio (max(h,w),def.1):"))
+    except:
+        print("Scale def. 1")
+        scale =1.0
+    square = True if input("Crop image with padding(Y/N),def.Y:") == "Y" else False
+    try:
+         resize_img = int(input("Resize(0:no):"))
+    except:
+        print("Scale def. 0")
+        resize_img = 0.0
 
     clsname = clsname.split(',')
     _,imgfiles = getFiles(imgdir,ImgType)
@@ -1159,32 +1208,7 @@ def main_change_sobelx(filedir):
         img = cv2.imread(os.path.join(filedir,file))
         img = sobelx(img)
         cv2.imwrite(os.path.join(str(savedir),file),img)
-        
-def main_clip_square_image(imgdir):
-    savedir = mkFolder(imgdir,"square_dataset")
-    imgfull,imgfiles = getFiles(imgdir,ImgType)
-    total = len(imgfiles)
-    cls = input("Class you want to save(person,mask.Note: has the same sort as yaml): ")
-    cls = cls.split(",")
-    for id,file in enumerate(imgfiles):
-        print("%d/%d Currrent image: %s" %(id+1,total,file))
-        bbox,w,h = getObjectxml(imgfull[id].replace(file[-4:],".xml"),classes="all")
-        s = min(w,h);l = max(w,h) ;  n = int(np.round(w/h+0.5)) if w>h else int(np.round(h/w+0.5));
-        offset = int(s - l/n)
-        img = cv2.imread(imgdir + file)
-        start = np.linspace(0,l-s,n)
-        for i in start:
-            i = int(i)
-            imgpath = str(savedir / str(file.replace(file[-4:],"_"+str(i)+file[-4:])))
-            xmlpath = imgpath.replace(imgpath[-4:], ".xml")
 
-            if w > h:
-                # print(s*i-offset*(i+1),s*i-offset*(i+1)+s)
-                cv2.imwrite(imgpath,img[0:s,i:i+s])
-                window_xml(xmlpath,bbox,[i,0,i+s,s],cls)
-            else:
-                cv2.imwrite(imgpath,img[i:i+s,0:s],cls)
-                window_xml(xmlpath,bbox,[0,i,s,i+s])
 
 def main_video2video(videodir):
     '''
@@ -1218,6 +1242,7 @@ def main_movobject(xmldir):
 def main_remunusedfile(xmldir):
     '''
         Remove unused files
+        label：lab；image：img
     '''
     filetype = input("Image or label will be removed:")
     if filetype == "lab":
@@ -1233,11 +1258,12 @@ def main_remunusedfile(xmldir):
 def main_imgchangetojpg(imgdir):
     " Change images' format to jpg "
     imgsdir,_ = getFiles(imgdir,ImgType)
+    # quality_index = input("Please input quarlity index(0~100):")
     filetype = input("You want to change to File type('.tif'):")
     for img in tqdm(imgsdir):
-         im = cv2.imread(img) 
-
-         cv2.imwrite(img.split('.')[0]+filetype,im)
+         im = cv2.imread(img)
+         params = [cv2.IMWRITE_JPEG_QUALITY, 50]
+         cv2.imwrite(img.split('.')[0]+filetype,im,params)
 
 def main_split_images(imgdir):
     " Split image to several jpg with w and h user defined or random "
@@ -1448,23 +1474,104 @@ def main_moveconfuse(imgdir):
             move(cpfile, savedir)
 
 def main_mkdirforonedir(imgdir):
-    "Move one image to folder named with imgage file name"
+    "Move one image to folder named with image file name"
     _,imgfiles = getFiles(imgdir, ImgType)
 
     for id,img in enumerate(imgfiles):
         savedir = mkFolder(imgdir,str(id))
         move(os.path.join(imgdir,img), savedir)
+def sparsebbox(bbox):
+    label = bbox[0]
+    x0 = bbox[1]
+    y0 = bbox[2]
+    w = bbox[3]
+    h = bbox[4]
+    return x0,y0,w,h
 
-def main_cropfixedroi(imgdir,clsname=["temp"]):
+def saveCropObject(imgdir, file, savedir,xmlfile="crop.xml"):
+    bbox, w, h = getObjectxml(imgdir+xmlfile, classes="all")
+    img = cv2.imread(imgdir + file)
+    for i,box in enumerate(bbox):
+        x0,y0,w,h = sparsebbox(box)
+        cv2.imwrite(str(Path(savedir,Path(file.replace(file[-4:],f"_{i}.jpg")))), img[x0:x0+w, y0:y0+h])
+
+def saveCropObject(imgdir, file, savedir,num,wh):
+    img = cv2.imread(imgdir + file)
+    (h1,w1,_) = img.shape
+    w,h = wh
+    inter = int((w1-w) / num)
+
+
+    for i in range(num):
+        if i == 0:
+            x0 = 0;y0 = 0;x1=w;y1 = h
+        else:
+            x0 = i * inter;
+            y0 = 0
+            x1 = i * inter+w;
+            y1 = h
+        cv2.imwrite(str(Path(savedir, Path(file.replace(file[-4:], f"_{i}.jpg")))), img[ y0:y1,x0:x1])
+
+def main_cropfixedroi(imgdir,cls=["other"]):
+    '''Move crop.xml file into the target dir.
+       Crop imgs with xml，
+       Note：Label Name: other
+    '''
+    num = int(input("Please input splited figures number"))
+
+    savedir = mkFolder(imgdir,cls[0])
+    _,imgfiles = getFiles(imgdir,ImgType)
+    for file in tqdm(imgfiles):
+        try:
+            saveCropObject(imgdir, file,savedir,num,wh=[144,144])
+        except Exception as e:
+            print(e)
+            print(traceback.format_exc())
+
+def main_cropsquareroi(imgdir,clsname=["temp"]):
     "Move crop.xml file into the target dir."
     _,imgfiles = getFiles(imgdir,ImgType)
     for file in tqdm(imgfiles):
         try:
             for cls in clsname:
-                saveCropImg(imgdir, file, cls,scale=0,square=False,fixroi =True)
+                savesquareImg(imgdir, file, cls,scale=0,square=False,fixroi =True)
         except Exception as e:
             print(e)
             print(traceback.format_exc())
+
+
+def main_crop_square_image(imgdir,keepnoobj):
+    '''
+        Crop square imge, keep object in xml
+        output : square img xml
+    '''
+    savedir = mkFolder(imgdir, "square_dataset")
+    imgfull, imgfiles = getFiles(imgdir, ImgType)
+    total = len(imgfiles)
+    cls = input("Class you want to save(person,mask.Note: has the same sort as yaml): ")
+    cls = cls.split(",")
+    for id, file in enumerate(imgfiles):
+        img = cv2.imread(imgdir + file)
+        print("%d/%d Currrent image: %s" % (id + 1, total, file))
+        bbox, w, h = getObjectxml(imgfull[id].replace(file[-4:], ".xml"), classes="all")
+        #算图的位置
+        s = min(w, h);
+        l = max(w, h);
+        n = int(np.round(w / h + 0.5)) if w > h else int(np.round(h / w + 0.5));
+        start = np.linspace(0, l - s, n)
+
+        for i in start:
+            i = int(i)
+            imgpath = str(savedir / str(file.replace(file[-4:], "_" + str(i) + file[-4:])))
+            xmlpath = imgpath.replace(imgpath[-4:], ".xml")
+
+            if w > h:
+                # print(s*i-offset*(i+1),s*i-offset*(i+1)+s)
+                cv2.imwrite(imgpath, img[0:s, i:i + s])
+                window_xml(xmlpath, bbox, [i, 0, i + s, s], cls)
+            else:
+                cv2.imwrite(imgpath, img[i:i + s, 0:s], cls)
+                window_xml(xmlpath, bbox, [0, i, s, i + s])
 
 def main_movediffimg(imgdir):
     "Move different iamges by commparing files between img dirs"
@@ -1489,6 +1596,33 @@ def main_mvimg2carmerafold(imgdir):
         move(img[i],des)
 
 
+def main_stretchfigure(imgdir):
+    ""
+    import numpy as np
+    img, imgname = getFiles(imgdir, ImgType)
+    des = mkFolder(imgdir, "res")
+    w = 8192;h = 10000
+    for i,name in enumerate(img):
+        image = cv2.imread(name)
+        h0,w0,_ = image.shape
+        # 计算图像的均方差
+        mean, std_dev = cv2.meanStdDev(image)
+        # 提取标准差值
+
+        gray_image = np.zeros(( h,w, 3), dtype=np.uint8)
+        # 为每个通道分别赋值
+        for channel in range(3):
+            gray_image[:, :, channel] = int(mean[channel,0])  # 将当前通道的所有像素值设为0
+        noise_image = np.random.normal(loc=0, scale=std_dev[0,0], size=(h,w,3))
+        dest_image = gray_image + noise_image
+        dest_image = cv2.GaussianBlur(dest_image,(17,17),11)
+        x0 = random.randint(0,w-image.shape[0]);y0 = random.randint(0,h-image.shape[1])
+
+        dest_image[y0:y0+h0, x0:x0+w0] = image
+
+        # 提取标准差值
+        cv2.imwrite(os.path.join(des,"res_"+str(i)+'.jpg'),dest_image)
+
 if __name__ == "__main__":
     try:
         action = sys.argv[1]
@@ -1497,7 +1631,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\360MoveData\Users\Yoking\Desktop\222\images/"
+        file_dir = r"D:\05_Trick\test\test_kongdong/"
         # pass
 
     try:
@@ -1528,7 +1662,7 @@ if __name__ == "__main__":
         elif action == "checklabelxml":#checklabelxml
             print(main_check_label_xml.__doc__)
             main_check_label_xml(file_dir)
-        elif action == "squareimg":#squareimg
+        elif action == "squareimg":#
             print(main_create_square_image_samples.__doc__)
             main_create_square_image_samples_one_pic(file_dir)
         elif action == "plotinferres":
@@ -1537,9 +1671,9 @@ if __name__ == "__main__":
         elif action == "changeHSV":
             print(main_change_hsv.__doc__)
             main_change_hsv(file_dir)
-        elif action == "clipsquareimage":
+        elif action == "clipsquareimage":#clipsquareimage
             print(main_change_hsv.__doc__)
-            main_clip_square_image(file_dir)
+            main_crop_square_image(file_dir)
         elif action == "changeYolo2Voc":
             print(main_change_yolo_to_voc.__doc__)
             main_change_yolo_to_voc(file_dir)
@@ -1588,15 +1722,19 @@ if __name__ == "__main__":
         elif action == "mkdirforonedir":  #mkdirforonedir
             print(main_mkdirforonedir.__doc__)
             main_mkdirforonedir(file_dir)
-        elif action == "":#cropfixedroi
-            print(main_cropfixedroi.__doc__)
-            main_cropfixedroi(file_dir)
         elif action == "movdiffimg":#movdiffimg"
             print(main_movediffimg.__doc__)
             main_movediffimg(file_dir)
         elif action == "mvimg2carmerafold":#
             print(main_mvimg2carmerafold.__doc__)
             main_mvimg2carmerafold(file_dir)
+        elif action =="varscales":#varscales
+            print(main_stretchfigure.__doc__)
+            main_stretchfigure(file_dir)
+        elif action == "cropfixedroi":#
+            print(main_cropfixedroi.__doc__)
+            main_cropfixedroi(file_dir)
+
 
     except Exception as e:
         print(e)

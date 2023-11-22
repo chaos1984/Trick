@@ -212,7 +212,17 @@
 			"iou_thres": 0.45,
 			"imgsize":780,
 			"device": "GPU"
-		}
+		},
+    "baosteel20231120": {
+      "detect": "yolov5-6.2",
+      "weights": "D:/05_Trick/modellib/baosteel_srufacedetect_20cls_Yolov5/Det20231113_baseline.pt",
+      "classes": [ "qp_bbqp_sj", "bdxtp", "bs", "bx", "cs", "dr", "hb", "hx", "jqtw", "jz", "kd", "tph", "yh", "by" ],
+      "save_dir": "./",
+      "conf_thres": 0.25,
+      "iou_thres": 0.45,
+      "imgsize": 768,
+      "device": "GPU"
+        }
 	},
 	"rules": {
 		"alarm": {
