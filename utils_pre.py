@@ -20,6 +20,7 @@ import random
 import traceback
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 
 ImgType = ['*.jpg','*.jpeg','*.tif','*.png','*.bmp']
@@ -30,6 +31,21 @@ configpath = os.path.join(pyscriptpath,"config.json")
 
 with open(configpath, 'r') as c:
     config = json.load(c)
+
+def calc_mode(nums):
+    '''
+    Calculate mode
+    :param nums: num:list
+    :return: mode,mode_count
+    '''
+    unique_values, value_counts = np.unique(nums, return_counts=True)
+
+    # 找到频次数组中的最大值索引
+    max_count_index = np.argmax(value_counts)
+    # 返回众数
+    mode = unique_values[max_count_index]
+    mode_count = value_counts[max_count_index]
+    return mode,mode_count
 
 def window_xml(xmlpath,bboxes,window,cls=["person"]):
     h = window[2]-window[0];w = window[3]-window[1];c=3
@@ -1257,13 +1273,66 @@ def main_remunusedfile(xmldir):
 
 def main_imgchangetojpg(imgdir):
     " Change images' format to jpg "
+    # gencomplexfigure(imgdir)
+    # gencircle(imgdir)
     imgsdir,_ = getFiles(imgdir,ImgType)
     # quality_index = input("Please input quarlity index(0~100):")
     filetype = input("You want to change to File type('.tif'):")
+    ct = []
+    imgsize = []
     for img in tqdm(imgsdir):
-         im = cv2.imread(img)
-         params = [cv2.IMWRITE_JPEG_QUALITY, 50]
-         cv2.imwrite(img.split('.')[0]+filetype,im,params)
+        im = cv2.imread(img)
+        params = [cv2.IMWRITE_JPEG_QUALITY, 100]
+        imgname = img.split('.')[0] + filetype
+        t0 = time.time()
+        cv2.imwrite(imgname,im,params)
+
+        ct.append(time.time()-t0)
+        imgsize.append([imgname,os.path.getsize(imgname)])
+        print(f"{imgname},{os.path.getsize(imgname)}")
+    ct = np.array(ct);imgsize = np.array(imgsize);
+    ct_m,ct_std = np.mean(ct)*1000, np.std(ct)*1000
+    print("%5.3f\t%5.3f" %(ct_m,ct_std))
+    return ct_m,ct_std,imgsize
+
+def gencomplexfigure(dir):
+    for j in range(8):
+        h = np.power(2,(j+1))
+        n =int( 320/ h)
+        block0 = np.zeros(( h,h, 3), dtype=np.uint8)
+        block1 = np.zeros(( h,h, 3), dtype=np.uint8)+255
+        img0 = np.hstack((block0, block1))
+        img1 = np.hstack((block1, block0))
+        img2 = np.vstack((img0, img1))
+        row = img2
+        for i in range(n-1):
+            row = np.hstack((row,img2))
+        img = row
+        for i in range(n-1):
+            img = np.vstack((img, row))
+        params = [cv2.IMWRITE_JPEG_QUALITY, 50]
+        cv2.imwrite(f"{dir}{j}.bmp", img)
+
+
+def gencircle(dir):
+    '''
+
+    Args:
+        dir: Save dir：string
+
+    Returns:
+
+    '''
+
+    height, width = 640, 640
+    background = np.zeros((height, width), dtype=np.uint8)
+    center_x, center_y = width // 2, height // 2
+    for j in range(8):
+        radius = np.power(2, (j + 1))
+        color = (255, 255, 255)  # 白色
+        thickness = -1  # 填充圆形的内部
+        cv2.circle(background, (center_x, center_y), radius, color, thickness)
+        cv2.imwrite(f"{dir}{j}.bmp", background)
 
 def main_split_images(imgdir):
     " Split image to several jpg with w and h user defined or random "
@@ -1329,26 +1398,34 @@ def main_img_to_video(imgdir):
         vid_writer.write(img)
     vid_writer.release()
 
+
+
+
 def main_padding_image(imgdir):
     " Padding images "
-    savedir = mkFolder(imgdir,"Paddding_rectangle")
-    imgfull,_ = getFiles(imgdir,ImgType)
-    for imgdir in imgfull:
-        img = cv2.imread(imgdir)
-        filename = os.path.split(imgdir)[-1]
-        size = img.shape
-        h = size[0]
-        w = size[1]
-        WHITE = [255,255,255]
-        if w > h:
-            border = (w - h) // 2
-            constant = cv2.copyMakeBorder(img, border, border, 0, 0, cv2.BORDER_CONSTANT,value = WHITE)
-        else:
-            border = (h - w) // 2
-            constant = cv2.copyMakeBorder(img, 0, 0, border, border, cv2.BORDER_CONSTANT, value=WHITE)
+    replacetxt = input("directory is replaced:")
+    for root, dirs, files in os.walk(imgdir):
+        for file in files:
+            imgdir = os.path.join(root, file)
+            img = cv2.imread(imgdir)
+            dir = os.path.dirname(imgdir)
+            size = img.shape
+            h = size[0]
+            w = size[1]
+            WHITE = [255,0,0]
+            if w > h:
+                border = (w - h) // 2
+                constant = cv2.copyMakeBorder(img, border, border, 0, 0, cv2.BORDER_CONSTANT,value = WHITE)
+            else:
+                border = (h - w) // 2
+                constant = cv2.copyMakeBorder(img, 0, 0, border, border, cv2.BORDER_CONSTANT, value=WHITE)
+            imgdir = imgdir.replace(replacetxt, "Padding")
 
-        new_file_path = os.path.join(savedir, f'{filename[:-4]}' + '_padding' + f'{filename[-4:]}')
-        cv2.imwrite(new_file_path, constant)
+            if os.path.exists(os.path.dirname(imgdir)):
+                cv2.imwrite(imgdir, constant)
+            else:
+                os.makedirs(dir.replace(replacetxt, "Padding"))
+                cv2.imwrite(imgdir, constant)
 
 
 
@@ -1455,15 +1532,10 @@ def main_add_figurelabel(filedir):
 
 def main_movefilestoone(imgdir):
     " Move files into father dirctory "
-    for dir in os.listdir(imgdir):
-        dir = imgdir + dir + '/'
-        imgsdir, _ = getFiles(dir , ImgType)
-        for img in imgsdir:
-            for cpfile in findRelativeFiles(img):
-                try:
-                    move(cpfile,imgdir)
-                except:
-                    print("File is duplicated!")
+    for root, dirs, files in os.walk(imgdir):
+        for file in files:
+            move(os.path.join(root, file),imgdir)
+
 
 def main_moveconfuse(imgdir):
     " Move error files into errorsamples folder"
@@ -1623,6 +1695,50 @@ def main_stretchfigure(imgdir):
         # 提取标准差值
         cv2.imwrite(os.path.join(des,"res_"+str(i)+'.jpg'),dest_image)
 
+def main_removeborder(dir,imsize=(1936,148)):
+    '''
+    Remove border and resize to user-defined size
+    Args:
+        files: image files:list
+        imsize: resize size:tuple
+
+    Returns:
+
+    '''
+    savedir = mkFolder(dir,"new")
+    files,names = getFiles(dir,ImgType)
+    png_params = [cv2.IMWRITE_PNG_COMPRESSION, 0,
+                  cv2.IMWRITE_PNG_BILEVEL, 0,
+                  cv2.IMWRITE_PNG_STRATEGY, 0,
+                  cv2.IMWRITE_PNG_STRATEGY_DEFAULT, 0]
+    for file in tqdm(files):
+        name = os.path.basename(file)
+        im = cv2.imread(file)
+        h, w, _ = im.shape
+        row_indices = []
+        col_indices = []
+        for i in range(w):
+            if calc_mode(im[:, i, 1])[1] / h > 0.9:
+                col_indices.append(i)
+        col_mask = np.ones((w), dtype=bool)
+        col_mask[col_indices] = False
+        im = im[:, col_mask]
+        for i in range(h):
+            if calc_mode(im[i, :, 1])[1] / w > 0.6:
+                row_indices.append(i)
+        row_mask = np.ones((h,), dtype=bool)
+        row_mask[row_indices] = False
+        im = im[row_mask]
+
+        #
+        im = cv2.resize(im, imsize)
+        im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        # 设置PNG保存参数
+
+        cv2.imwrite(os.path.join(savedir,name), im, png_params)
+
+
+
 if __name__ == "__main__":
     try:
         action = sys.argv[1]
@@ -1631,7 +1747,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\05_Trick\test\test_kongdong/"
+        file_dir = r"D:\360MoveData\Users\Yoking\Desktop\111/"
         # pass
 
     try:
@@ -1689,16 +1805,13 @@ if __name__ == "__main__":
         elif action == "imagefiter":#imagefiter
             print(main_imagesize_filter.__doc__)
             main_imagesize_filter(file_dir)
-        elif action == "imgchangetojpg":
-            print(main_imgchangetojpg.__doc__)
-            main_imgchangetojpg(file_dir)
         elif action == "splitimages":#splitimages
             print(main_split_images.__doc__)
             main_split_images(file_dir)
         elif action == "imgtovideo":
             print(main_img_to_video.__doc__)
             main_img_to_video(file_dir)
-        elif action == "paimaddingimage":#paimaddingimage
+        elif action == "":#paddingimage
             print(main_padding_image.__doc__)
             main_padding_image(file_dir)
         elif action == "resizeimage":#resizeimage
@@ -1713,7 +1826,7 @@ if __name__ == "__main__":
         elif action == "addfigurelabel":#addfigurelabel
             print(main_add_figurelabel.__doc__)
             main_add_figurelabel(file_dir)
-        elif action == "movefilestoone":  # movefilestoone
+        elif action == "movefilestoone":  #
             print(main_movefilestoone.__doc__)
             main_movefilestoone(file_dir)
         elif action == "moveerrorfiles":  # moveerrorfiles
@@ -1734,7 +1847,12 @@ if __name__ == "__main__":
         elif action == "cropfixedroi":#
             print(main_cropfixedroi.__doc__)
             main_cropfixedroi(file_dir)
-
+        elif action == "imgchangetojpg":#
+            print(main_imgchangetojpg.__doc__)
+            main_imgchangetojpg(file_dir)
+        elif action == "removeborder":#
+            print(main_removeborder.__doc__)
+            main_removeborder(file_dir)
 
     except Exception as e:
         print(e)
