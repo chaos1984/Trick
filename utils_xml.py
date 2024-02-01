@@ -44,7 +44,7 @@ def combineXMLinDirection(xmlfilelist, edgelen,fignum,padding,direction,flip):
 def combineXML(xmlfilelist,flip,xoffset=0,yoffset=0):
     tree = ET.parse(xmlfilelist[0])
     root = tree.getroot()
-    root.findall("size")[0].findall("width")[0].text = root.findall("size")[0].findall("width")[0].text = str(max(int(root.findall("size")[0].findall("width")[0].text) , int(root.findall("size")[0].findall("height")[0].text)))
+    root.findall("size")[0].findall("width")[0].text = root.findall("size")[0].findall("height")[0].text = str(max(int(root.findall("size")[0].findall("width")[0].text) , int(root.findall("size")[0].findall("height")[0].text)))
     # size = root.findall("size")
 
     for i,xmlfile in enumerate(xmlfilelist[1:]):
@@ -89,7 +89,7 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
     Author: Yujin Wang
     Date: 2022-02-14
     Args:
-        res[list]:[[],[]....]
+        res[list]:[[],[]....] e.g.xmin, ymin, xmax, ymax,confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), float(item[4])
         imgpath[str]:img path
         cls[dict]: key: clsid; value: clsname
         xmlfile[str]:xml file path

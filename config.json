@@ -18,9 +18,9 @@
 			"weights": "D:/05_Trick/modellib/chihong_4cls/last.pt",
 			"classes": ["person","smoke","remote","cell phone"],
 			"save_dir":"./",
-			"conf_thres": 0.4,
+			"conf_thres": 0.1,
 			"iou_thres": 0.45,
-			"imgsize":1280,
+			"imgsize":2560,
 			"device": "GPU"
 		},
         "vehicle": {
@@ -178,7 +178,7 @@
       "weights": "D:/05_Trick/modellib/baosteel_surfacedefect_20cls/best_1124.pt",
       "classes": [ "qp_bbqp_sj", "bdxtp", "bs", "bx", "cs", "dr", "hb", "hx", "jqtw", "jz", "kd", "tph", "yh", "by" ],
       "save_dir": "./",
-      "conf_thres": 0.25,
+      "conf_thres": 0.1,
       "iou_thres": 0.45,
       "imgsize": 768,
       "device": "GPU"

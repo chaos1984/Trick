@@ -135,8 +135,12 @@ def mkFolder(dir,foldername):
         new folder directory
     Usage:
     '''
-    savedir = Path(dir + foldername)
-    savedir.mkdir(parents=True, exist_ok=True)
+    try:
+        savedir = Path(dir + foldername)
+        savedir.mkdir(parents=True, exist_ok=True)
+    except:
+        savedir = Path(dir + "_")
+        savedir.mkdir(parents=True, exist_ok=True)
     return savedir
 
 def getFiles(folddir,typelist):
@@ -286,12 +290,13 @@ def Yolo2VOC(imgfiles,classes):
     total = len(imgfiles)
     id = 1
     for imgfile in imgfiles:
-        im = cv2.imread(imgfile)
-        im_h,im_w,im_c = im.shape
-        bbox = []
-        print("%d/%d Currrent image: %s" % (id, total, imgfile))
-        id += 1
         try:
+            print("%d/%d Currrent image: %s" % (id, total, imgfile))
+            im = cv2.imread(imgfile)
+            im_h,im_w,im_c = im.shape
+            bbox = []
+            id += 1
+
             for line in open(imgfile[:-4]+'.txt'):
 
                 clsid,cx,cy,w,h = [float(i) for i in line.split()]
@@ -300,8 +305,10 @@ def Yolo2VOC(imgfiles,classes):
             xmldic = {"size": {"w": str(im_w), "h": str(im_h), "c": str(im_c)}, "object": bbox}
             createObjxml(xmldic, imgfile, cls=classes, xmlfile=None)
 
-        except:
-            print ("No yolo text file found!",imgfile)
+        except Exception as e:
+            print(e)
+            print("Error:imgfile:",imgfile)
+
 
 def VOC2Yolo(xmlfiles,classes='all'):
     '''
@@ -920,7 +927,9 @@ def main_check_label_xml(xmldir):
     else:
         print("No unlabeled img found!")
     
-    savedir = mkFolder(xmldir, "checkres")    
+    savedir = mkFolder(xmldir, "checkres")
+    clsname =",".join(list(cls.keys()))
+    print(clsname)
     for name in cls.keys():
         temp = np.array(cls[name]["confidence"])
         plothist(temp,name,savedir / f'{name}_confidence.jpg')
@@ -1737,7 +1746,29 @@ def main_removeborder(dir,imsize=(1936,148)):
 
         cv2.imwrite(os.path.join(savedir,name), im, png_params)
 
+def main_rotate90_img(imgdir):
+    '''
+       Augmentation for Images
+    '''
+    imgfilespath,imgfiles= getFiles(imgdir,ImgType)
+    savedir = mkFolder(imgdir, "rotate90")
+    for id,imgfile in enumerate(imgfilespath):
+        print("here")
+        im = cv2.imread(imgfile)
 
+        files = findRelativeFiles(imgfile)
+        xmldir = imgdir + f"{imgfiles[id][:-4]}.xml"
+        for file in files:
+            if ".xml" in file:
+                objectlist,w,h = getObjectxml(xmldir,classes='all')
+        img, label = rotate90(im,targets=objectlist)
+        im_h, im_w, _ = img.shape
+
+        xmldic = {"size": {"w": str(im_w), "h": str(im_h), "c": str(3)}, "object": label}
+        imgfile = str(savedir / imgfiles[id])
+        cv2.imwrite(imgfile,img)
+        createObjxml(xmldic, imgfile[:-4]+".xml", xmlfile=None)
+    return 0
 
 if __name__ == "__main__":
     try:
@@ -1747,7 +1778,7 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\360MoveData\Users\Yoking\Desktop\111/"
+        file_dir = r"D:\test/"
         # pass
 
     try:
@@ -1778,7 +1809,7 @@ if __name__ == "__main__":
         elif action == "checklabelxml":#checklabelxml
             print(main_check_label_xml.__doc__)
             main_check_label_xml(file_dir)
-        elif action == "squareimg":#
+        elif action == "squareimg":#squareimg
             print(main_create_square_image_samples.__doc__)
             main_create_square_image_samples_one_pic(file_dir)
         elif action == "plotinferres":
@@ -1811,7 +1842,7 @@ if __name__ == "__main__":
         elif action == "imgtovideo":
             print(main_img_to_video.__doc__)
             main_img_to_video(file_dir)
-        elif action == "":#paddingimage
+        elif action == "paddingimage":#
             print(main_padding_image.__doc__)
             main_padding_image(file_dir)
         elif action == "resizeimage":#resizeimage
@@ -1853,6 +1884,10 @@ if __name__ == "__main__":
         elif action == "removeborder":#
             print(main_removeborder.__doc__)
             main_removeborder(file_dir)
+        elif action == "":
+            print(main_rotate90_img.__doc__)
+            main_rotate90_img(file_dir)
+ 
 
     except Exception as e:
         print(e)
