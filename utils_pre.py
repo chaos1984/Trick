@@ -1543,8 +1543,10 @@ def main_movefilestoone(imgdir):
     " Move files into father dirctory "
     for root, dirs, files in os.walk(imgdir):
         for file in files:
-            move(os.path.join(root, file),imgdir)
-
+            try:
+                move(os.path.join(root, file),imgdir)
+            except:
+                print(file) 
 
 def main_moveconfuse(imgdir):
     " Move error files into errorsamples folder"
@@ -1753,7 +1755,6 @@ def main_rotate90_img(imgdir):
     imgfilespath,imgfiles= getFiles(imgdir,ImgType)
     savedir = mkFolder(imgdir, "rotate90")
     for id,imgfile in enumerate(imgfilespath):
-        print("here")
         im = cv2.imread(imgfile)
 
         files = findRelativeFiles(imgfile)
@@ -1770,6 +1771,79 @@ def main_rotate90_img(imgdir):
         createObjxml(xmldic, imgfile[:-4]+".xml", xmlfile=None)
     return 0
 
+def main_samenamefile(dir):
+    '''
+        Move samme file name into one folder!
+    '''
+    format = input("Mov same name files into one folder(e.g. *.tif):")
+    typelist = [i for i in format.split(",")]
+    imgdirs, _ = getFiles(dir, typelist)
+    samedir = mkFolder(dir,"same")
+
+    for img in tqdm(imgdirs):
+        files = findRelativeFiles(img)
+        if len(files) > 1:
+            # move(img, samedir)
+            for file in files:
+                move(file,samedir)
+
+
+def main_compareimgdiff(dir):
+    '''
+        Move samme file name into one folder!
+    '''
+    format = input("Mov same name files into one folder(e.g. *.tif):")
+    typelist = [i for i in format.split(",")]
+    imgdirs, _ = getFiles(dir, typelist)
+    res = []
+
+    for img in tqdm(imgdirs):
+        files = findRelativeFiles(img)
+        if len(files) == 2:
+            image1 = cv2.imread(files[0])
+            image2 = cv2.imread(files[1])
+            image1  = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+            image2  = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+            subtracted_image = cv2.absdiff(image1, image2)
+            image1 = zscore(image1)
+            image2 = zscore(image2)
+            plt.imsave(files[0].replace(files[0][-4:],"_.jpg"),subtracted_image, cmap='gray')
+            # 计算两幅图像的灰度直方图
+            hist1,vector1 = calculate_histogram(image1)
+            hist2,vector2 = calculate_histogram(image2)
+
+            # 计算灰度直方图相似度
+            similarity_hist,similarity_cosine = calculate_histogram_similarity(hist1, hist2,vector1,vector2)
+            res.append([files[0],similarity_hist,similarity_cosine,np.max(subtracted_image)])
+    res = pd.DataFrame(res)
+    res.to_csv(dir+"res.csv")
+
+def main_Huaatjsontoxml(datadir):
+    typelist = ["*.json"]
+    for root, dirs, files in os.walk(datadir):
+        if dirs ==[]:
+            jsondirs,_ = getFiles(root,typelist)
+            if jsondirs == []:
+                print(f"No json files: {root}")
+            else:
+                for jsonfile in jsondirs:
+                    with open(jsonfile, 'r') as defectdic:
+                        data = json.load(defectdic)
+                    new_bbox = []
+                    for defect in data["anno"]:
+                        box = eval(defect["coor"])
+                        defect_label = defect["label"][3:].lower()
+                        new_xmin, new_ymin, new_xmax, new_ymax = box[0][0],box[0][1],box[1][0],box[1][1]
+                        temp = [ new_xmin, new_ymin, new_xmax, new_ymax,1, defect_label]
+                        new_bbox.append(temp)
+                    img = cv2.imread(jsonfile[:-4] + "jpg")
+                    (h, w, _) = img.shape
+                    xmldic = {"size": {"w": str(w), "h": str(h), "c": str(3)}, "object": new_bbox}
+                    createObjxml(xmldic, jsonfile[:-4]+".xml", [])
+    # print(data)
+    return
+
+
 if __name__ == "__main__":
     try:
         action = sys.argv[1]
@@ -1778,13 +1852,20 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\test/"
+        file_dir = r"D:\360MoveData\Users\Yoking\Desktop\download/"
         # pass
 
     try:
         if action == "getFrame":
             print(main_extract_frame_from_video.__doc__)
             main_extract_frame_from_video(file_dir)
+        elif action == "":#Huaatjsontoxml
+            main_Huaatjsontoxml(file_dir)
+        elif action == "compare2img":#
+            main_compareimgdiff(file_dir)
+        elif action =="samenamefile":
+            print(main_samenamefile.__doc__)
+            main_samenamefile(file_dir)
         elif action == "remObj":
             print(main_remove_obj_from_xml.__doc__)
             main_remove_obj_from_xml(file_dir)
@@ -1884,7 +1965,7 @@ if __name__ == "__main__":
         elif action == "removeborder":#
             print(main_removeborder.__doc__)
             main_removeborder(file_dir)
-        elif action == "":
+        elif action == "rotate90img":
             print(main_rotate90_img.__doc__)
             main_rotate90_img(file_dir)
  

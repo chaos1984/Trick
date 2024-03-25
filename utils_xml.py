@@ -124,6 +124,7 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
             item.append(temp)
         try:
             xmin, ymin, xmax, ymax,confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), float(item[4])
+            # print(xmin, ymin, xmax, ymax)
         except:
             xmin, ymin, xmax, ymax, confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), 0
         obj = create_node("object","")

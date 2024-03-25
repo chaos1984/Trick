@@ -3,15 +3,79 @@ from utils_pre import *
 from utils_xml import *
 from utils_math import *
 import math
+# from skimage.measure import compare_ssim
 import cv2
 import numpy as np
 import random
 import traceback
+from sklearn.metrics.pairwise import cosine_similarity
+# import imutils
+
+# def comarae2img(grayA, grayB):
+#     (score, diff) = compare_ssim(grayA, grayB, full=True)
+#     diff = (diff * 255).astype("uint8")
+#
+#     # 找到不同点的轮廓以致于我们可以在被标识为“不同”的区域周围放置矩形：
+#
+#     thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+#
+#     cnts = cv2.findContours(thresh.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+#     cnts = cnts[1] if imutils.is_cv2() else cnts[0]
+#
+#
+#     for c in cnts:
+#         (x, y, w, h) = cv2.boundingRect(c)
+#         cv2.rectangle(imageA, (x, y), (x + w, y + h), (0, 0, 255), 2)
+#     return imageA
+
 
 def voc2yolocoor(data,h,w):
     for id,a in enumerate(data):
         data[id] =[a[0],float(a[1]/w),float(a[2]/h),float(a[3]/w),float(a[4]/h),a[5]]
     return data
+
+
+def minmaxgray(gray_image):
+    min_val = np.min(gray_image)
+    max_val = np.max(gray_image)
+    normalized_image = (gray_image - min_val) / (max_val - min_val)
+    return  normalized_image
+
+def calculate_histogram(image):
+    vector = image.flatten()
+    # 计算灰度直方图
+    hist = cv2.calcHist([image], [0], None, [256], [0, 256])
+
+    # 对直方图进行归一化
+    hist = cv2.normalize(hist, hist)
+
+    return hist,vector
+
+def zscore(image):
+    # 将灰度图像转换为NumPy数组
+    image_array = np.array(image, dtype=np.float32)
+
+    # 计算图像数组的平均值和标准差
+    mean = np.mean(image_array)
+    std = np.std(image_array)
+
+    # 对图像数组进行Z标准化处理
+    normalized_image_array = (image_array - mean) / std
+
+    # 将标准化后的数组转换回灰度图像
+    normalized_image = np.array(normalized_image_array, dtype=np.uint8)
+    return normalized_image
+
+def calculate_histogram_similarity(hist1, hist2,vector1,vector2):
+    # 使用巴氏距离计算直方图相似度
+    similarity_hist = 1- cv2.compareHist(hist1, hist2, cv2.HISTCMP_BHATTACHARYYA)
+
+    vector1 = vector1.reshape(1, -1)
+    vector2 = vector2.reshape(1, -1)
+
+    similarity = cosine_similarity(vector1, vector2)
+    similarity_cosine = similarity[0][0]
+    return similarity_hist,similarity_cosine
 
 
 def box_candidates(box1, box2, wh_thr=2, ar_thr=100, area_thr=0.1, eps=1e-16):  # box1(4,n), box2(4,n)
