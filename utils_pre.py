@@ -32,6 +32,12 @@ configpath = os.path.join(pyscriptpath,"config.json")
 with open(configpath, 'r') as c:
     config = json.load(c)
 
+def preprocess(imgdir):
+    xmldir = imgdir.replace(imgdir[-4:],".xml")
+    objectlist,w,h = getObjectxml(xmldir,"all")
+    img = cv2.imread(imgdir)
+    return img,objectlist,w,h
+
 def calc_mode(nums):
     '''
     Calculate mode
@@ -707,7 +713,7 @@ def plotRectBox(img,objectlist,names):
     '''
     sys.path.append(config["yolov5"])
     from utils.plots import Annotator, colors
-    annotator = Annotator(img, line_width=3, example="")
+    annotator = Annotator(img, line_width=1, example="")
     
     for object in objectlist:
         if len(object)==6:
@@ -715,7 +721,7 @@ def plotRectBox(img,objectlist,names):
         else:
             label, xmin, ymin, xmax, ymax,conf =object[0],object[1], object[2], object[3], object[4],0
         c = names.index(label)
-        label =  f'{names[c]} {conf:.2f}'
+        label =  f'{names[c]} ' #{conf:.2f}
         annotator.box_label([xmin, ymin, xmax, ymax], label, color=colors(c, True))
         # cv2.rectangle(img,(xmin,ymin),(xmax,ymax),(0,0,255),1)
         # cv2.putText(img, object[0], (int((xmin+xmax)/2),int((ymin+ymax)/2)), cv2.FONT_HERSHEY_SIMPLEX,0.4,(0,255,255),1)
@@ -1079,18 +1085,23 @@ def main_plot_bbox(imgdir):
 
     # imgfiles.sort(key=lambda x: int(x.split('_')[0]))
 
+    # 更改工作目录到图片所在目录
+    os.chdir(os.path.dirname(imgdir))
 
-    for id,file in enumerate(imgfiles):
+    # 使用OpenCV读取图片
+
+    for id,file in enumerate(tqdm(imgfiles)):
         print(file)
         xmlfile = imgdir + file.replace(file[-4:],".xml")
         bbox,_,_ = getObjectxml(xmlfile,cls)
-        img = cv2.imread(imgdir + file)
+
+        img = cv2.imread(file)
         h,w,  _ = img.shape
         print(f'w:{w} h:{h}')
         img = plotRectBox(img,bbox,names=cls)
         print("%d/%d Currrent image: %s" %(id+1,total,file))
-        imgpath = savedir / file
-
+        imgpath = "plotbbox/" + file[:-4]+".jpg"
+        print(imgpath)
         # img = plot_line(img,ptStart = (1160, 110),ptEnd = (0, 630))
         # img = plot_line(img, ptStart=(960, 35), ptEnd=(0, 339))
         cv2.imwrite(str(imgpath),img)
@@ -1247,18 +1258,23 @@ def main_video2video(videodir):
     for file in filelist:
         Video2Video(os.path.join(videodir,file),os.path.join(savedir,file),interval,offset,scale)
 
-def main_movobject(xmldir):
+def main_movobject(xmldir,autoflag="", numclass=""):
     '''
         Move file included object to object dir  
     '''
     xmlfiles,_ = getFiles(xmldir,LabelType)
-    cls = input("Class name(label list,e.g. [person,mask]):")
-    try:
-        numclass = int(input("Number threshold of labels(def. 99):"))
-    except:
-        print('Default number 99 will be used!')
-        numclass = 99
+    if autoflag == "":
+        cls = input("Class name(label list,e.g. [person,mask]):")
+    else:
+        cls = autoflag
     cls = cls.split(',')
+
+    if numclass == "":
+        try:
+            numclass = int(input("Number threshold of labels(def. 99):"))
+        except:
+            print('Default number 99 will be used!')
+            numclass = 99
     for i in cls:
         xmlfiles,_ = getFiles(xmldir,LabelType)
         savedir = mkFolder(xmldir,i)
@@ -1411,7 +1427,7 @@ def main_img_to_video(imgdir):
 
 
 def main_padding_image(imgdir):
-    " Padding images "
+    " Padding images only for img "
     replacetxt = input("directory is replaced:")
     for root, dirs, files in os.walk(imgdir):
         for file in files:
@@ -1535,18 +1551,40 @@ def main_add_figurelabel(filedir):
             bboxlist,w,h = getObjectxml(xmlfile,classes='all')
         else:
             bboxlist,w,h = [],99999,99999
-        bboxlist.append([label,Min_x,Min_y,Max_x,Max_y,0])
+        bboxlist.append([Min_x,Min_y,Max_x,Max_y,0,label])
         xmldic = {"size": {"w": str(w), "h": str(h), "c": '3'}, "object": bboxlist}
         createObjxml(xmldic, imgfile[:-4] + '.xml', cls=[])
 
-def main_movefilestoone(imgdir):
-    " Move files into father dirctory "
+def main_movefilestoone(imgdir,num=0):
+    """
+     num = 0 move
+     num > 0  rename file with dir.
+     Move files into father dirctory"""
     for root, dirs, files in os.walk(imgdir):
-        for file in files:
-            try:
-                move(os.path.join(root, file),imgdir)
-            except:
-                print(file) 
+        for file in tqdm(files):
+            if num == 0:
+                try:
+                    move(os.path.join(root, file),imgdir)
+                except:
+                    print(file)
+            else:
+
+                folders = []
+                file_path = root
+                for i in range(num):
+                    file_path, folder = os.path.split(file_path)
+                    if folder != "":
+                        folders.append(folder)
+                    else:
+                        if file_path != "":
+                            folders.append(file_path)
+                        break
+                folders.reverse()
+                folders.extend([file])
+
+                foldesaname = "_".join(folders)
+                copyfile(os.path.join(root, file),file_path+"//"+foldesaname)
+
 
 def main_moveconfuse(imgdir):
     " Move error files into errorsamples folder"
@@ -1844,6 +1882,256 @@ def main_Huaatjsontoxml(datadir):
     return
 
 
+def find_keys_by_value(dictionary, value):
+    keys = []
+    for key, val in dictionary.items():
+        if val == value:
+            keys.append(key)
+    return keys
+
+def main_S3CSV2XML(folddir):
+    '''
+    读入数据，解析成xml文件
+    '''
+
+    defect_dic = {
+        "dqp": "HA",
+        "qp": "HA",
+        "bbqp": "HB",
+        "jqtw": "HH",
+        "clxtp": "IA",
+        "zgxtp": "IB",
+        "wdxtp": "IC",
+        "bdxtp": "ID",
+        "tph": "IF",
+        "htp": "IG",
+        "hb": "IK",
+        "zh": "JJ",
+        "hs": "KA",
+        "cs": "KB",
+        "zp": "KE",
+        "dr": "KH",
+        "kd": "KI",
+        "bs": "SA",
+        "bx": "SF",
+        "jz": "HD",
+        "dtdw": "E2",
+        "dzyr": "LA",
+        "zdxtp": "II",
+        "yh": "JA",
+        "nt": "IE",
+        "zd": "NA",
+        "hx": "HD",
+        "bg": "WW"
+    }
+
+    csvfiles, _ = getFiles(folddir, ["*.csv"])
+    for csvf in csvfiles:
+        if os.path.exists(csvf[:-4]):
+            print(csvf)
+            db = pd.read_csv(csvf, encoding='gbk')
+            db1 = db.iloc[1:]
+            # db1= db1.loc[:, ['out_mat_no':'defectname','topx0':]]
+            print(db1.keys())
+            for i, d in db1.iterrows():
+                jpgname = str(d["imagefile"])
+                roix0 = str(d["roix0"])
+                roiy0 = str(d["roiy0"])
+                roix1 = str(d["roix1"])
+                roiy1 = str(d["roiy1"])
+                cls = str(d["defectclasscode"])
+                keys = find_keys_by_value(defect_dic,  cls)
+                bbox = [[roix0, roiy0, roix1, roiy1, 0, keys[0]]]
+                print(bbox)
+                xmldic = {"size": {"w": str(1536), "h": str(148), "c": str(3)}, "object": bbox}
+                createObjxml(xmldic,  csvf[:-4] + "/" + jpgname, cls=[], xmlfile=None)
+            # move(csvf, csvf[:-4])
+        else:
+            print("Error: no folder found! ")
+def adjustwh(x1,y1,x2,y2,thred):
+    w = x2-x1;h=y2-y1
+    ratio = int(max(w,h)/min(w,h))
+    if ratio > thred:
+        ratio = thred
+        flag = True
+        if w > h:
+            delta_h = int((w/ratio-h)/2+1)
+            if y1 - delta_h < 0:
+                y1 = 0; y2= y2 + 2*delta_h
+            else:
+                y1 = y1-delta_h;y2=y2+delta_h
+
+        else:
+            delta_w = int((h/ratio-h)/2+1)
+            if x1 - delta_w < 0:
+                x1 = 0; x2= x2 + 2*delta_w
+            else:
+                x1 = x1-delta_w;x2=x2+delta_w
+    else:
+        flag = False
+    return x1,y1,x2,y2,flag
+
+
+def main_adjustwh(file_dir):
+    """
+    Adjust w h to a proper raio for Yolo label
+    """
+    xml_dirs, _ = getFiles(file_dir, LabelType)
+    savedir = mkFolder(file_dir, "newxml")
+
+    for xml in xml_dirs:
+        bboxes, w, h = getObjectxml(xml, "all")
+        new_bboxes = []
+        flag_list = []
+        for bbox in bboxes:
+            bbox[1], bbox[2], bbox[3], bbox[4], flag = adjustwh(bbox[1], bbox[2], bbox[3], bbox[4], thred=200)
+            temp = [bbox[1], bbox[2], bbox[3], bbox[4], 1, bbox[0]]
+            new_bboxes.append(temp)
+            flag_list.append(flag)
+        if True in flag_list:
+            print(f"Bound box xml file is modified:{xml}")
+            xmldic = {"size": {"w": str(w), "h": str(h), "c": "3"}, "object": new_bboxes}
+            createObjxml(xmldic, os.path.join(savedir, os.path.basename(xml)))
+            move(xml[:-4]+".png",savedir)
+
+    print(savedir)
+
+def split_list_randomly(lst, num_parts):
+    random.shuffle(lst)  # 随机打乱列表顺序
+    avg = len(lst) // num_parts  # 计算每份的平均长度
+    remainder = len(lst) % num_parts  # 计算剩余的元素个数
+
+    result = []
+    start = 0
+    for i in range(num_parts):
+        length = avg + 1 if i < remainder else avg  # 根据剩余元素个数决定每份的长度
+        result.append(lst[start:start + length])
+        start += length
+    return result
+
+
+def main_splitdataset(file_dir):
+    """
+    Random Move files to different folders.
+    """
+    img_dirs, _ = getFiles(file_dir, ImgType)
+    n = int(input("Input the number you want to divide:"))
+    group_list = split_list_randomly(img_dirs,n)
+    for i,group in enumerate(group_list):
+        savedir = mkFolder(file_dir,str(i))
+        for f in group:
+            for fs in findRelativeFiles(f):
+                move(fs,savedir)
+
+def main_removeduplicate(xmldir):
+    """
+    Remove duplicate "by" and adjust whbuy
+
+    """
+    _,xmlfiles = getFiles(xmldir,LabelType)
+    cls = input("Class name(e.g.: person,mask):")
+    cls = cls.split(',')
+    remDuplicateObjectxml(xmldir,xmlfiles,cls,isSavas=True)
+
+
+def remDuplicateObjectxml(xmldir, xmlfiles, classes, isSavas=True):
+    '''
+    Description: remove object from xmlfile in VOC
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        xmldir[str]:xml file directory
+        xmlfile[],classes
+    Return:
+        NaN
+    Usage:
+        filedir = r'D:\01_Project\01_Fangang\01_Ref_211232\1\images/copy/'
+        xmlfiles = glob.glob(filedir + '*.xml')
+        remObjectxml(filedir,xmlfiles,["person"],isSavas=False)
+    '''
+
+    # xmlfile = os.path.join(xmldir, xmlfile)
+    savedir = mkFolder(xmldir, "rem_copy")
+    for xmlfile in xmlfiles:
+        # file = file.replace("\\", "/")
+        xmlpath = xmldir + xmlfile
+        tree = ET.parse(xmlpath)
+        root = tree.getroot()
+        objects = root.findall("object")
+        isfindflag = 0
+        seen = []
+        for obj in objects:
+            name = obj.find('name').text
+            print(name)
+            if name in classes:
+                if name in seen:
+                    root.remove(obj)
+                else:
+                    seen.append(name)
+                isfindflag = 1
+
+        if isfindflag == 1:
+            print(xmlpath, os.path.join(savedir, xmlfile))
+            copyfile(xmlpath, os.path.join(savedir, xmlfile))
+            for cpfile in findRelativeFiles(xmlfile[:-4]):
+                copyfile(cpfile, savedir)
+            tree.write(xmlpath)
+
+def main_adjustobjectxml(xmldir):
+
+    """
+
+    Args:
+        file_dir:
+
+    Returns:
+
+    """
+    _,xmlfiles = getFiles(xmldir,LabelType)
+    cls = input("Class name(e.g.: person,mask):")
+    cls = cls.split(',')
+    adjustbbox(xmldir,xmlfiles,cls)
+
+def adjustbbox(imgdir,xmlfiles,cls):
+
+    os.chdir(os.path.dirname(imgdir))
+
+    # 使用OpenCV读取图片
+
+    for id, xmlfile  in enumerate(tqdm(xmlfiles)):
+        bbox, w, h = getObjectxml(xmlfile,classes="all")
+        bbox_list = []
+        for i, bbox in enumerate(bbox):
+            if bbox[0] in cls:
+                b = (float(bbox[1]), float(0),float(bbox[3]),  float(h),0.5,bbox[0])
+            else:
+                b = (float(bbox[1]), float(bbox[2]), float(bbox[3]), float(bbox[4]), float(bbox[5]),bbox[0])
+            bbox_list.append(b)
+        xmldic = {"size": {"w": str(w), "h": str(h), "c": '3'}, "object": bbox_list}
+        createObjxml(xmldic, xmlfile)
+
+def main_masknonroi(imgdir):
+    '''
+    Mask nonroi with other color
+    '''
+    imgdirs,_ = getFiles(imgdir,ImgType)
+    color = (255,0,0)
+    savedir = mkFolder(imgdir,"newimg")
+    masknonroi(imgdirs,savedir,color)
+
+
+
+def masknonroi(imgdirs,savedir,color=(0,0,255)):
+
+    for imgdir in tqdm(imgdirs):
+        img,bboxes,w,h = preprocess(imgdir)
+        bg = np.zeros((h, w, 3), dtype=np.uint8)
+        bg[:] = color
+        for i,bbox in enumerate(bboxes):
+            xmin,ymin,xmax,ymax = bbox[1],bbox[2],bbox[3],bbox[4]
+            bg[ymin:ymax, xmin:xmax] = img[ymin:ymax, xmin:xmax]
+            cv2.imwrite(os.path.join(savedir,str(i)+"_" + os.path.basename(imgdir)),bg)
+
 if __name__ == "__main__":
     try:
         action = sys.argv[1]
@@ -1852,21 +2140,36 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"D:\360MoveData\Users\Yoking\Desktop\download/"
+        file_dir = r"F:\宝钢酸洗带钢表面缺陷检测\01_Data\BaoSteel_梅山_酸洗_202404\04_王予津\temp/"
         # pass
-
     try:
-        if action == "getFrame":
+        if action == "getFrame": # Extract frame from 
             print(main_extract_frame_from_video.__doc__)
             main_extract_frame_from_video(file_dir)
-        elif action == "":#Huaatjsontoxml
+        elif action =="main_masknonroi":
+            print(main_masknonroi.__doc__)
+            main_masknonroi(file_dir)
+        elif action == "suanxibyadjust":
+            print(main_removeduplicate.__doc__)
+            main_removeduplicate(file_dir)
+            main_adjustobjectxml(file_dir)
+        elif action == "splitdataset":
+            print(main_splitdataset.__doc__)
+            main_splitdataset(file_dir)
+        elif action == "adjustwh":
+            print(main_adjustwh.__doc__)
+            main_adjustwh(file_dir)
+        elif action =="S32XML":#
+            print(main_samenamefile.__doc__)
+            main_S3CSV2XML(file_dir)
+        elif action == "Huaatjsontoxml":#Huaatjsontoxml
             main_Huaatjsontoxml(file_dir)
         elif action == "compare2img":#
             main_compareimgdiff(file_dir)
         elif action =="samenamefile":
             print(main_samenamefile.__doc__)
             main_samenamefile(file_dir)
-        elif action == "remObj":
+        elif action == "main_remove_obj_from_xml":
             print(main_remove_obj_from_xml.__doc__)
             main_remove_obj_from_xml(file_dir)
         elif action == "voc2yolo":
@@ -1923,7 +2226,7 @@ if __name__ == "__main__":
         elif action == "imgtovideo":
             print(main_img_to_video.__doc__)
             main_img_to_video(file_dir)
-        elif action == "paddingimage":#
+        elif action == "padding_image":#
             print(main_padding_image.__doc__)
             main_padding_image(file_dir)
         elif action == "resizeimage":#resizeimage
@@ -1935,7 +2238,7 @@ if __name__ == "__main__":
         elif action == "sobel_x":#
             print(main_change_sobelx.__doc__)
             main_change_sobelx(file_dir)
-        elif action == "addfigurelabel":#addfigurelabel
+        elif action == "":#addfigurelabel
             print(main_add_figurelabel.__doc__)
             main_add_figurelabel(file_dir)
         elif action == "movefilestoone":  #
@@ -1968,7 +2271,10 @@ if __name__ == "__main__":
         elif action == "rotate90img":
             print(main_rotate90_img.__doc__)
             main_rotate90_img(file_dir)
- 
+        elif action == "movsubfoldertofather":
+            print(main_movefilestoone.__doc__)
+            main_movefilestoone(file_dir)
+            main_movobject(file_dir,autoflag="?",numclass=99)
 
     except Exception as e:
         print(e)

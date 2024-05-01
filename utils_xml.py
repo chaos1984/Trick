@@ -118,15 +118,13 @@ def createObjxml(res,imgpath,cls=[],xmlfile=None):
         root = tree.getroot()
     for id,item in enumerate(res["object"]):
         # xmin,xmax,ymin,ymax = xywh2xyxy(*item)
-        if type(item[0]) == str:
-            temp = item[0]
-            item.pop(0)
-            item.append(temp)
+
         try:
-            xmin, ymin, xmax, ymax,confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), float(item[4])
+            xmin, ymin, xmax, ymax,confidence = int(float([0])), int(float(item[1])), int(float(item[2])), int(float(item[3])), float(float(item[4]))
             # print(xmin, ymin, xmax, ymax)
         except:
-            xmin, ymin, xmax, ymax, confidence = int(item[0]), int(item[1]), int(item[2]), int(item[3]), 0
+             xmin, ymin, xmax, ymax, confidence = int(float(item[0])), int(float(item[1])), int(float(item[2])), int(float(item[3])), 0
+                # int(item[0]), int(item[1]), int(item[2]), int(item[3]), 0
         obj = create_node("object","")
         if cls != []: #if label is num check dictionary
             obj.append(create_node("name",cls[int(item[-1])]))
@@ -347,8 +345,7 @@ def getObjectxml(xmlfile,classes):
             name = obj.find('name').text
             if name in classes or classes == "all":
                 bndbox = obj.find('bndbox')
-                box = [name]
-
+                box=[]
                 for child in bndbox:
                     if len(child.text.split(".")) != 2:
                         box.append(int(child.text))
@@ -356,6 +353,7 @@ def getObjectxml(xmlfile,classes):
                         box.append(float(child.text))
                 if len(box) < 6:
                     box.append(0) #confidence
+                box.append(name)
                 objectlist.append(box)
     else:
         pass

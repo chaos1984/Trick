@@ -193,7 +193,7 @@ def plotRectBox(img,object,label):
                 saveimgfile = xmlfile.replace(".xml",imgname)
                 # saveCropImg(img,object['bndbox'],save_path+saveimgfile,scale=3)
                 img = plotRectBox(img,object['bndbox'],label,saveimgfile)
-            cv2.imwrite(saveimgfile,img)
+            cv2.imwrite(saveimgfile,img[:-4]+".jpg")
         else:
             print ('Warnning: No %s found!' %(label))
     '''
