@@ -180,7 +180,7 @@ def movObjectxml(xmlfiles,cls,savedir,numclass = 99):
             continue
                 
 
-def remObjectxml(xmldir,xmlfiles,classes,isSavas=True):
+def movObjectxml(xmlfiles,cls,savedir,numclass = 99):
     '''
     Description: remove object from xmlfile in VOC
     Author: Yujin Wang
@@ -197,10 +197,63 @@ def remObjectxml(xmldir,xmlfiles,classes,isSavas=True):
     '''
     
     # xmlfile = os.path.join(xmldir, xmlfile)
-    savedir = mkFolder(xmldir,"rem_copy")
+    
     for xmlfile in xmlfiles:
         # file = file.replace("\\", "/")
-        xmlpath = xmldir+xmlfile
+
+        tree = ET.parse(xmlfile)
+        root = tree.getroot()
+        objects = root.findall("object")
+        if len(objects) <= numclass:
+            for obj in objects:
+                name = obj.find('name').text
+                if name.strip() == cls:
+                    for cpfile in findRelativeFiles(xmlfile[:-4]):
+                        move(cpfile,savedir)
+        else:
+            continue
+
+def chkVerifiedxml(xmlfiles,savedir):
+    w = 0;r=0;
+    for xmlfile in xmlfiles:
+    # file = file.replace("\\", "/")
+
+        tree = ET.parse(xmlfile)
+        root = tree.getroot()
+        check = root.keys()
+        if len(check)== 1:
+            w=w+1
+            for cpfile in findRelativeFiles(xmlfile[:-4]):
+                move(cpfile,savedir)
+        else:
+            r=r+1
+    print(f"Total:{w+r}\tWrong:{w}\tRight:{r}\t{round(r/(w+r),3)*100}%")
+            
+                  
+
+
+def remObjectxml(xmldir,xmlfiles,classes,isSave=True):
+    '''
+    Description: remove object from xmlfile in VOC
+    Author: Yujin Wang
+    Date: 2022-01-24
+    Args:
+        xmldir[str]:xml file directory
+        xmlfile[],classes
+    Return:
+        NaN
+    Usage:
+        filedir = r'D:\01_Project\01_Fangang\01_Ref_211232\1\images/copy/' 
+        xmlfiles = glob.glob(filedir + '*.xml')
+        remObjectxml(filedir,xmlfiles,["person"],isSave=False)
+    '''
+    
+    # xmlfile = os.path.join(xmldir, xmlfile)
+    #
+ 
+    for xmlfile in tqdm(xmlfiles):
+        # file = file.replace("\\", "/")
+        xmlpath = xmldir+ str(xmlfile)
         tree = ET.parse(xmlpath)
         root = tree.getroot()
         objects = root.findall("object")
@@ -210,9 +263,10 @@ def remObjectxml(xmldir,xmlfiles,classes,isSavas=True):
             if name in classes:
                 root.remove(obj)
                 isfindflag = 1
+        tree.write(xmlpath)
 
-
-        if isfindflag == 1:
+        if isfindflag == 1 and isSave:
+            
             print(xmlpath,os.path.join(savedir,xmlfile))
             copyfile(xmlpath,os.path.join(savedir,xmlfile))
             for cpfile in findRelativeFiles(xmlfile[:-4]):
@@ -264,7 +318,7 @@ def checkLabexml(xmlfiles):
         print("Class name:%s\tNumber:%d" %(name,cls[name]["count"]))
     return noobject,cls
 
-def chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSavas=False):
+def chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSave=False):
     '''
     Description:Change class name in xmlfile
     Author: Yujin Wang
@@ -277,29 +331,33 @@ def chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSavas=False):
     Usage:
         filedir = r'D:\01_Project\01_Fangang\01_Ref_211232\1\images/copy/' 
         xmlfiles = glob.glob(filedir + '*.xml')
-        remObjectxml(filedir,xmlfiles,["person"],isSavas=False)
+        remObjectxml(filedir,xmlfiles,["person"],isSave=False)
     '''
     # print(xmldir,xmlfiles,oldcls,newcls)
-    if isSavas==True:
-        savedir = mkFolder(dir,'rem')
-    # xmlfile = os.path.join(xmldir, xmlfile)
-    for xmlfile in xmlfiles:
-        # file = file.replace("\\", "/")
-        tree = ET.parse(os.path.join(xmldir,xmlfile))
-        root = tree.getroot()
-        objects = root.findall("object")
-        for obj in objects:
-            name = obj.find('name').text
-            if name == oldcls:
-                # root.remove(obj)
-                # print(obj['name'])
-                obj.find('name').text = newcls
-        
-        if isSavas==True:
-            fn = xmlfile.replace("\\", "/").split("/")[-1].split(".json")[0]
-            xmlfile = os.path.join(savedir,fn)
-        print(xmlfile)
-        tree.write(xmlfile)
+    oldcls_list = oldcls.split(',');newcls_list = newcls.split(',')
+    if len(oldcls_list) == len(newcls_list):
+        if isSave==True:
+            savedir = mkFolder(dir,'rem')
+        # xmlfile = os.path.join(xmldir, xmlfile)
+        for xmlfile in tqdm(xmlfiles):
+            # file = file.replace("\\", "/")
+            tree = ET.parse(os.path.join(xmldir,xmlfile))
+            root = tree.getroot()
+            objects = root.findall("object")
+            for obj in objects:
+                name = obj.find('name').text
+                if name in oldcls_list:
+                    # root.remove(obj)
+                    # print(obj['name'])
+                    obj.find('name').text = newcls_list[oldcls_list.index(name)]
+            
+            if isSave==True:
+                fn = xmlfile.replace("\\", "/").split("/")[-1].split(".json")[0]
+                xmlfile = os.path.join(savedir,fn)
+            # print(xmlfile)
+            tree.write(xmlfile)
+    else:
+        print("new and old length error!")
 
 def flipObjextxml(xmlfile,augfiledir,fliptype="v") : #0-hflip;1-vflip;-1-hvflip
     objectlist,w,h = getObjectxml(xmlfile,classes='all')
@@ -351,7 +409,7 @@ def getObjectxml(xmlfile,classes):
                         box.append(int(child.text))
                     else:
                         box.append(float(child.text))
-                if len(box) < 6:
+                if len(box) < 5:
                     box.append(0) #confidence
                 box.append(name)
                 objectlist.append(box)

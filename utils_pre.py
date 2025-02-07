@@ -165,7 +165,7 @@ def getFiles(folddir,typelist):
     folddir = folddir + os.path.sep
     for type in typelist:
         files.extend(glob.glob(folddir + type))
-    files_wodir = [i.replace("\\", "/").split("/")[-1].split(".json")[0] for i in files]
+    files_wodir = [Path(i.replace("\\", "/").split("/")[-1].split(".json")[0]) for i in files]
     return files,files_wodir
 
 
@@ -857,14 +857,17 @@ def main_extract_frame_from_video(videodir):
 
 
 
-def main_remove_obj_from_xml(xmldir): 
+def main_remove_obj_from_xml(xmldir,cls1 = "zdxtp,zgxtp,zh,kd,yh"): 
     '''
         Remove object from xml
     '''
     _,xmlfiles = getFiles(xmldir,LabelType)
     cls = input("Class name(e.g.: person,mask):")
+    if cls =='N':
+        cls = cls1
     cls = cls.split(',')
-    remObjectxml(xmldir,xmlfiles,cls,isSavas=True)
+    print(f"Classes : f{cls}")
+    remObjectxml(xmldir,xmlfiles,cls,isSave=False)
  
 
 
@@ -891,14 +894,19 @@ def main_change_yolo_to_voc(imgdir):
     cls_name = cls_name.split(',')
     Yolo2VOC(imgfiles,cls_name)
 
-def main_change_cls_name(xmldir):
+def main_change_cls_name(xmldir,oldcls1 = "Hs_DTDW,Hs_BS1,Hs_ZP,Hs_DQP1,Hs_ZDXTP1,Hs_BY,Hs_JZ,Hs_QP,Hs_DR,Hs_KD1,Hs_HTP,Hs_YH,Hs_DZYR,Hs_JQTW,Hs_HS,Hs_HX,Hs_CS,Hs_BDXTP,Hs_KD,Hs_BS,Hs_ZH,Hs_WDXTP,Hs_BBQP,Hs_BX,Hs_TPH,Hs_ZGXTP,Hs_HB", \
+     newcls1 = "dtdw,bs,zp,dqp,zdxtp,by,jz,qp,dr,kd,htp,yh,dzyr,jqtw,hs,hx,cs,bdxtp,kd,bs,zh,wdxtp,bbqp,bx,tph,zgxtp,hb"):
     '''
         Change class name
     '''
     xmlfiles = glob.glob(xmldir+ '*.xml')
     oldcls = input("Old class:")
     newcls = input("New class:")
-    chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSavas=False)
+    if oldcls == "" and newcls =="":
+        oldcls == oldcls1;newcls == newcls1
+        chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSave=False)
+    else:
+        chgObjectxml(xmldir,xmlfiles,oldcls,newcls,isSave=False)
 
 
 def plothist(data,title,imgfile,bins = [10, 20, 30, 40, 50, 70],datarange=(0,1),show= False):
@@ -985,9 +993,9 @@ def main_yolo_train_val_set(imgdir,task = 'test'):
             writeFile(samplerdir / 'test.txt', imgfiles)
             return
         
-
-        train_files =   [img_serverdir+ 'train/' + i for i in train_files]
-        val_files =   [img_serverdir +'validation/' + i for i in val_files]
+        print(img_serverdir) 
+        train_files =   [str(img_serverdir)+ 'train/' + str(i) for i in train_files]
+        val_files =   [str(img_serverdir) +'validation/' + str(i) for i in val_files]
         writeFile(samplerdir / 'train.txt', train_files)
         writeFile(samplerdir / 'val.txt',val_files)
     else:
@@ -1292,6 +1300,7 @@ def main_remunusedfile(xmldir):
         files,_ = getFiles(xmldir,ImgType)
     unuseddir = mkFolder(xmldir,'unused')
     for file in files:
+        print(file)
         if len(findRelativeFiles(file)) == 1:
             move(file,unuseddir)
 
@@ -1372,8 +1381,8 @@ def main_split_images(imgdir):
     # w= 780;h =144; randomflag = True;random_num=2
     savedir = mkFolder(imgdir,"Crop_images")
     imgfiles, _ = getFiles(imgdir, ImgType)
-
     for imgfile in tqdm(imgfiles):
+        print(imgfile)
         im = cv2.imread(imgfile)
         im_h,im_w,im_c = im.shape
         if im_h >= h and im_w >= w:
@@ -1466,7 +1475,7 @@ def main_resize_image(imgdir):
         (imgh,imgw,_) = img.shape
         if h ==  imgh and w == imgw:
             continue
-        print(f"\nResized image:{imgdir}\n")
+        # print(f"\nResized image:{imgdir}\n")
         img = cv2.resize(img, (w,h), interpolation=cv2.INTER_CUBIC)
         new_file_path =  os.path.join(savedir,f'{filename[:-4]}' +  f'{filename[-4:]}')
         cv2.imwrite(new_file_path, img)
@@ -1874,7 +1883,8 @@ def main_Huaatjsontoxml(datadir):
                         new_xmin, new_ymin, new_xmax, new_ymax = box[0][0],box[0][1],box[1][0],box[1][1]
                         temp = [ new_xmin, new_ymin, new_xmax, new_ymax,1, defect_label]
                         new_bbox.append(temp)
-                    img = cv2.imread(jsonfile[:-4] + "jpg")
+                    print(jsonfile[:-8] + "jpg")
+                    img = cv2.imread(jsonfile[:-8] + "jpg")
                     (h, w, _) = img.shape
                     xmldic = {"size": {"w": str(w), "h": str(h), "c": str(3)}, "object": new_bbox}
                     createObjxml(xmldic, jsonfile[:-4]+".xml", [])
@@ -1948,9 +1958,30 @@ def main_S3CSV2XML(folddir):
             # move(csvf, csvf[:-4])
         else:
             print("Error: no folder found! ")
+            
+def adjustw_ratio(x1,y1,x2,y2,ratio,imgw):
+    w = x2-x1;h = y2-y1
+    print(w/h)
+    delta_w = int((h*ratio - w)/2)
+    if x1 - delta_w < 0 :
+        x2 = x2 + delta_w*2-x1;x1 = 0
+    elif x2 + delta_w > imgw :
+        x2 =  imgw ;x1 = imgw-delta_w*2
+    else :
+        x2 = x2+delta_w;x1 = x1-delta_w 
+    w = x2-x1;h = y2-y1
+    print(ratio,w/h)
+        
+    # #TODOLIST  
+        
+    # x2 = x2 + delta_w
+
+    return x1,y1,x2,y2           
+            
 def adjustwh(x1,y1,x2,y2,thred):
     w = x2-x1;h=y2-y1
     ratio = int(max(w,h)/min(w,h))
+    print(f"ratio:{ratio}")
     if ratio > thred:
         ratio = thred
         flag = True
@@ -1984,17 +2015,13 @@ def main_adjustwh(file_dir):
         new_bboxes = []
         flag_list = []
         for bbox in bboxes:
-            bbox[1], bbox[2], bbox[3], bbox[4], flag = adjustwh(bbox[1], bbox[2], bbox[3], bbox[4], thred=200)
-            temp = [bbox[1], bbox[2], bbox[3], bbox[4], 1, bbox[0]]
+            # bbox[0], bbox[1], bbox[2], bbox[3], flag = adjustwh(bbox[0], bbox[1], bbox[2], bbox[3], thred=200)
+            bbox[0], bbox[1], bbox[2], bbox[3]= adjustw_ratio(bbox[0], bbox[1], bbox[2], bbox[3],0.15,w)
+            temp = [bbox[0], bbox[1], bbox[2], bbox[3], 1, bbox[5]]
             new_bboxes.append(temp)
-            flag_list.append(flag)
-        if True in flag_list:
-            print(f"Bound box xml file is modified:{xml}")
             xmldic = {"size": {"w": str(w), "h": str(h), "c": "3"}, "object": new_bboxes}
             createObjxml(xmldic, os.path.join(savedir, os.path.basename(xml)))
-            move(xml[:-4]+".png",savedir)
 
-    print(savedir)
 
 def split_list_randomly(lst, num_parts):
     random.shuffle(lst)  # 随机打乱列表顺序
@@ -2087,7 +2114,7 @@ def main_adjustobjectxml(xmldir):
     Returns:
 
     """
-    _,xmlfiles = getFiles(xmldir,LabelType)
+    xmlfiles,_ = getFiles(xmldir,LabelType)
     cls = input("Class name(e.g.: person,mask):")
     cls = cls.split(',')
     adjustbbox(xmldir,xmlfiles,cls)
@@ -2099,15 +2126,20 @@ def adjustbbox(imgdir,xmlfiles,cls):
     # 使用OpenCV读取图片
 
     for id, xmlfile  in enumerate(tqdm(xmlfiles)):
+
         bbox, w, h = getObjectxml(xmlfile,classes="all")
         bbox_list = []
         for i, bbox in enumerate(bbox):
-            if bbox[0] in cls:
-                b = (float(bbox[1]), float(0),float(bbox[3]),  float(h),0.5,bbox[0])
+            print(bbox[5]) 
+            if bbox[5] in cls:
+
+                b = (float(bbox[0])-10, float(0),float(bbox[2])+10,  float(h),0.5,bbox[5])
+                print(b)
             else:
-                b = (float(bbox[1]), float(bbox[2]), float(bbox[3]), float(bbox[4]), float(bbox[5]),bbox[0])
+                b = (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]), float(bbox[4]),bbox[5])
             bbox_list.append(b)
         xmldic = {"size": {"w": str(w), "h": str(h), "c": '3'}, "object": bbox_list}
+
         createObjxml(xmldic, xmlfile)
 
 def main_masknonroi(imgdir):
@@ -2132,6 +2164,47 @@ def masknonroi(imgdirs,savedir,color=(0,0,255)):
             bg[ymin:ymax, xmin:xmax] = img[ymin:ymax, xmin:xmax]
             cv2.imwrite(os.path.join(savedir,str(i)+"_" + os.path.basename(imgdir)),bg)
 
+def main_movexmlverified(xmldir):
+    '''
+        Move file included object to object dir  
+    '''
+    savedir = mkFolder(xmldir,"verify")
+    xmlfiles,_ = getFiles(xmldir,LabelType)
+    chkVerifiedxml(xmlfiles,savedir)
+
+def main_checkfigurequality(xmldir):
+    '''
+       Check Quality
+    '''
+    savedir = mkFolder(xmldir,"QualityFigure")
+    imgfiles,_ = getFiles(xmldir,ImgType)
+    chkFigurequality(imgfiles,savedir)
+
+def chkFigurequality(imgfiles,savedir):
+    for imgfile in imgfiles:
+        image_path_encoded = imgfile.encode('utf-8').decode('utf-8')
+        img = cv2.imread(image_path_encoded)
+        red_channel = img[:, :, 2]  # 第三个通道是红色通道
+        height, width, channels = img.shape
+    
+        # 计算红色通道最后五个像素的起始位置
+        start_x = width - 5
+        # 获取红色通道的最后五个像素的数值
+        last_five_red_pixels = red_channel[-1, start_x:start_x+5]
+        variance = np.var(last_five_red_pixels)
+        print(variance)
+        if variance == 0:
+            for file in findRelativeFiles(imgfile):
+                move(file,savedir)
+        else:
+            pass
+
+def test():
+    print("12312312")
+    return 0
+
+    
+
 if __name__ == "__main__":
     try:
         action = sys.argv[1]
@@ -2140,29 +2213,35 @@ if __name__ == "__main__":
             file_dir = file_dir+os.sep
     except:
         action = ""
-        file_dir = r"F:\宝钢酸洗带钢表面缺陷检测\01_Data\BaoSteel_梅山_酸洗_202404\04_王予津\temp/"
+        file_dir = r"C:\Users\chaos\Desktop\new\image\temp/"
         # pass
     try:
         if action == "getFrame": # Extract frame from 
             print(main_extract_frame_from_video.__doc__)
             main_extract_frame_from_video(file_dir)
+        elif action == "main_checkfigurequality":#main_checkfigurequality
+            print(main_checkfigurequality.__doc__)
+            main_checkfigurequality(file_dir)
+        elif action =="main_movexmlverified":
+            print(main_movexmlverified.__doc__)
+            main_movexmlverified(file_dir)
         elif action =="main_masknonroi":
             print(main_masknonroi.__doc__)
             main_masknonroi(file_dir)
-        elif action == "suanxibyadjust":
-            print(main_removeduplicate.__doc__)
-            main_removeduplicate(file_dir)
+        elif action == "adjustobjectxml":
+            print(main_adjustobjectxml.__doc__)
+            # main_removeduplicate(file_dir)
             main_adjustobjectxml(file_dir)
         elif action == "splitdataset":
             print(main_splitdataset.__doc__)
             main_splitdataset(file_dir)
-        elif action == "adjustwh":
+        elif action == "main_adjustwh":
             print(main_adjustwh.__doc__)
             main_adjustwh(file_dir)
         elif action =="S32XML":#
             print(main_samenamefile.__doc__)
             main_S3CSV2XML(file_dir)
-        elif action == "Huaatjsontoxml":#Huaatjsontoxml
+        elif action == "main_Huaatjsontoxml":#Huaatjsontoxml
             main_Huaatjsontoxml(file_dir)
         elif action == "compare2img":#
             main_compareimgdiff(file_dir)
@@ -2175,7 +2254,7 @@ if __name__ == "__main__":
         elif action == "voc2yolo":
             print(main_change_voc_to_yolo.__doc__)
             main_change_voc_to_yolo(file_dir)
-        elif action == "chgObjectxml":
+        elif action == "main_change_cls_name":
             print(main_change_cls_name.__doc__)
             main_change_cls_name(file_dir)
         elif action == "changefilename":#changefilename
@@ -2232,13 +2311,13 @@ if __name__ == "__main__":
         elif action == "resizeimage":#resizeimage
             print(main_resize_image.__doc__)
             main_resize_image(file_dir)
-        elif action == "splitdataset":#
+        elif action == "main_split_dataset":#
             print(main_split_dataset.__doc__)
             main_split_dataset(file_dir)
         elif action == "sobel_x":#
             print(main_change_sobelx.__doc__)
             main_change_sobelx(file_dir)
-        elif action == "":#addfigurelabel
+        elif action == "addfigurelabel":#addfigurelabel
             print(main_add_figurelabel.__doc__)
             main_add_figurelabel(file_dir)
         elif action == "movefilestoone":  #
@@ -2271,10 +2350,13 @@ if __name__ == "__main__":
         elif action == "rotate90img":
             print(main_rotate90_img.__doc__)
             main_rotate90_img(file_dir)
-        elif action == "movsubfoldertofather":
+        elif action == "":
             print(main_movefilestoone.__doc__)
             main_movefilestoone(file_dir)
             main_movobject(file_dir,autoflag="?",numclass=99)
+        elif action == "test":
+            test()
+            
 
     except Exception as e:
         print(e)
